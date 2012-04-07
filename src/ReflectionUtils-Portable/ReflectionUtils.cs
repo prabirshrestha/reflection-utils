@@ -82,7 +82,7 @@ namespace ReflectionUtilsNew
 #endif
         }
 
-        public static ConstructorInfo GetConstructorInfo(Type type, Type[] argsType)
+        public static ConstructorInfo GetConstructorInfo(Type type, params Type[] argsType)
         {
             IEnumerable<ConstructorInfo> constructorInfos = GetConstructors(type);
             int i;
@@ -123,6 +123,17 @@ namespace ReflectionUtilsNew
 #endif
             return GetConstructorByReflection(typeCache, type, argsType);
 #endif
+        }
+
+        public static ConstructorDelegate GetConstructorByReflection(ConstructorInfo constructorInfo)
+        {
+            return delegate(object[] args) { return constructorInfo.Invoke(args); };
+        }
+
+        public static ConstructorDelegate GetConstructorByReflection(Type type, params Type[] argsType)
+        {
+            ConstructorInfo constructorInfo = GetConstructorInfo(type, argsType);
+            return constructorInfo == null ? null : GetConstructorByReflection(constructorInfo);
         }
 
         public static ConstructorDelegate GetConstructorByReflection(PadLockDictionary<Type, PadLockDictionary<Type[], ConstructorDelegate>> typeCache, Type type, params Type[] argsType)
