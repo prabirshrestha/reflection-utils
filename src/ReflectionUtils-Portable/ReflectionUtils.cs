@@ -164,6 +164,43 @@ namespace ReflectionUtilsNew
         }
 
 #if !REFLECTION_UTILS_NO_LINQ_EXPRESSION
+
+        public static ConstructorDelegate GetConstructorByCompiledLambda(ConstructorInfo constructorInfo)
+        {
+            ParameterInfo[] paramsInfo = constructorInfo.GetParameters();
+            // create a single param of type object[]
+            ParameterExpression param = Expression.Parameter(typeof(object[]), "args");
+
+            Expression[] argsExp = new Expression[paramsInfo.Length];
+
+            // pick each arg from the params array 
+            // and create a typed expression of them
+            for (int i = 0; i < paramsInfo.Length; i++)
+            {
+                Expression index = Expression.Constant(i);
+                Type paramType = paramsInfo[i].ParameterType;
+                Expression paramAccessorExp = Expression.ArrayIndex(param, index);
+                Expression paramCastExp = Expression.Convert(paramAccessorExp, paramType);
+                argsExp[i] = paramCastExp;
+            }
+
+            // make a NewExpression that calls the ctor with the args we just created
+            NewExpression newExp = Expression.New(constructorInfo, argsExp);
+
+            // create a lambda with the New
+            // Expression as body and our param object[] as arg
+            Expression<Func<object[], object>> lambda = Expression.Lambda<Func<object[], object>>(newExp, param);
+            Func<object[], object> compiledLambda = lambda.Compile();
+
+            return delegate(object[] args) { return compiledLambda(args); };
+        }
+
+        public static ConstructorDelegate GetConstructorByCompiledLambda(Type type, params Type[] argsType)
+        {
+            ConstructorInfo constructorInfo = GetConstructorInfo(type, argsType);
+            return constructorInfo == null ? null : GetConstructorByCompiledLambda(constructorInfo);
+        }
+
         public static ConstructorDelegate GetConstructorByCompiledLambda(PadLockDictionary<Type, PadLockDictionary<Type[], ConstructorDelegate>> typeCache, Type type, params Type[] argsType)
         {
             PadLockDictionary<Type[], ConstructorDelegate> constructorCache;
