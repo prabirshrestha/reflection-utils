@@ -77,6 +77,8 @@ namespace ReflectionUtils
             GetNewInstanceByReflection();
             GetNewInstanceByReflectionEmit();
             GetNewInstanceByCompiledLambda();
+
+            GetGetMethod();
         }
 
         private static void GetNewInstanceByReflection()
@@ -133,6 +135,27 @@ namespace ReflectionUtils
             {
                 object multiple = ReflectionUtilsNew.ReflectionUtilsNew.GetConstructorByCompiledLambda(cache, type, ReflectionUtilsNew.ReflectionUtilsNew.EmptyTypes)();
             }
+            EndTest();
+        }
+
+        private static void GetGetMethod()
+        {
+            StartTest("get.reflection - first");
+            var getter = ReflectionUtilsNew.ReflectionUtilsNew.GetGetMethodByReflection(propertyInfo);
+            object first = getter(simpleClass);
+            EndTest();
+
+            StartTest("get.reflection - second");
+            object second = getter(simpleClass);
+            EndTest();
+
+            StartTest("get.reflection - " + loops);
+
+            for (int i = 2; i < loops; i++)
+            {
+                object value = getter(simpleClass);
+            }
+
             EndTest();
         }
 

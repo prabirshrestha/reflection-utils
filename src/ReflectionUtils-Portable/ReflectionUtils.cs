@@ -410,6 +410,16 @@ namespace ReflectionUtilsNew
 
 #endif
 
+        public static GetDelegate GetGetMethodByReflection(PropertyInfo propertyInfo)
+        {
+#if REFLECTION_UTILS_TYPEINFO
+            MethodInfo methodInfo = propertyInfo.GetMethod;
+#else
+            MethodInfo methodInfo = propertyInfo.GetGetMethod(true);
+#endif
+            return delegate(object source) { return methodInfo.Invoke(source, EmptyTypes); };
+        }
+
 #if REFLECTION_UTILS_INTERNAL
         internal
 #else
