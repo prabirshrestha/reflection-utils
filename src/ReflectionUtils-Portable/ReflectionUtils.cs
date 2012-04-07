@@ -17,6 +17,9 @@
 // <website>https://github.com/facebook-csharp-sdk/ReflectionUtils</website>
 //-----------------------------------------------------------------------
 
+// uncomment the following line to make ReflectionUtils public
+//#define REFLECTION_UTILS_PUBLIC
+
 // uncomment the following line for .NET 2.0, .NET 3.0, WP7.0 and XBox360 where Lambda.Compile() is not supported. SL4+, WP7.1+ and .NET 3.5+ supports Lambda.Compile();
 //#define REFLECTION_UTILS_NO_LINQ_EXPRESSION
 
@@ -45,15 +48,40 @@ namespace ReflectionUtilsNew
     using System.Reflection.Emit;
 #endif
 
-    public delegate object ConstructorDelegate(params object[] args);
+#if REFLECTION_UTILS_PUBLIC
+        public
+#else
+    internal
+#endif
+ delegate object ConstructorDelegate(params object[] args);
 
-    public delegate object GetDelegate(object source);
+#if REFLECTION_UTILS_PUBLIC
+        public
+#else
+    internal
+#endif
+ delegate object GetDelegate(object source);
 
-    public delegate void SetDelegate(object source, object value);
+#if REFLECTION_UTILS_PUBLIC
+        public
+#else
+    internal
+#endif
+ delegate void SetDelegate(object source, object value);
 
-    public delegate object MethodDelegate(object source, params object[] args);
+#if REFLECTION_UTILS_PUBLIC
+        public
+#else
+    internal
+#endif
+ delegate object MethodDelegate(object source, params object[] args);
 
-    public static class ReflectionUtilsNew
+#if REFLECTION_UTILS_PUBLIC
+        public
+#else
+    internal
+#endif
+ static class ReflectionUtils
     {
         public static readonly Type[] EmptyTypes = new Type[] { };
         private static readonly object[] EmptyObjects = new object[] { };
@@ -61,13 +89,13 @@ namespace ReflectionUtilsNew
 #if REFLECTION_UTILS_REFLECTION_EMIT
 
         private static readonly bool UseReflectionEmit;
-        static ReflectionUtilsNew()
+        static ReflectionUtils()
         {
             try
             {
                 // try creating a new object by Reflection.Emit first to see if we have enough permission.
-                PadLockDictionary<Type, PadLockDictionary<Type[], ConstructorDelegate>> dummyCache = new PadLockDictionary<Type, PadLockDictionary<Type[], ConstructorDelegate>>();
-                object dummyObj = GetConstructorByReflectionEmit(dummyCache, typeof(DummyClassForReflectionEmitTest), EmptyTypes)();
+                ThreadSafeDictionary<Type, ThreadSafeDictionary<Type[], ConstructorDelegate>> dummyCache = new ThreadSafeDictionary<Type, ThreadSafeDictionary<Type[], ConstructorDelegate>>();
+                object dummyObj = GetConstructorByReflectionEmit(typeof(DummyClassForReflectionEmitTest), EmptyTypes)();
                 if (dummyObj != null)
                     UseReflectionEmit = true;
             }
@@ -113,20 +141,6 @@ namespace ReflectionUtilsNew
             return null;
         }
 
-        public static ConstructorDelegate GetConstructor(PadLockDictionary<Type, PadLockDictionary<Type[], ConstructorDelegate>> typeCache, Type type, params Type[] argsType)
-        {
-#if !REFLECTION_UTILS_NO_LINQ_EXPRESSION
-            return GetConstructorByCompiledLambda(typeCache, type, argsType);
-#else
-
-#if  REFLECTION_UTILS_REFLECTION_EMIT
-            if (UseReflectionEmit)
-                return GetConstructorByReflectionEmit(typeCache, type, argsType);
-#endif
-            return GetConstructorByReflection(typeCache, type, argsType);
-#endif
-        }
-
         public static ConstructorDelegate GetConstructorByReflection(ConstructorInfo constructorInfo)
         {
             return delegate(object[] args) { return constructorInfo.Invoke(args); };
@@ -136,33 +150,6 @@ namespace ReflectionUtilsNew
         {
             ConstructorInfo constructorInfo = GetConstructorInfo(type, argsType);
             return constructorInfo == null ? null : GetConstructorByReflection(constructorInfo);
-        }
-
-        public static ConstructorDelegate GetConstructorByReflection(PadLockDictionary<Type, PadLockDictionary<Type[], ConstructorDelegate>> typeCache, Type type, params Type[] argsType)
-        {
-            PadLockDictionary<Type[], ConstructorDelegate> constructorCache;
-            ConstructorDelegate ctor = null;
-            if (typeCache.TryGetValue(type, out constructorCache))
-            {
-                if (constructorCache.TryGetValue(argsType, out ctor))
-                    return ctor;
-            }
-            else
-            {
-                constructorCache = new PadLockDictionary<Type[], ConstructorDelegate>();
-            }
-
-            ConstructorInfo constructorInfo = GetConstructorInfo(type, argsType);
-            if (constructorInfo != null)
-                ctor = delegate(object[] args) { return constructorInfo.Invoke(args); };
-
-            lock (typeCache.Padlock)
-            {
-                constructorCache.TryAdd(argsType, ctor);
-                typeCache.TryAdd(type, constructorCache);
-            }
-
-            return ctor;
         }
 
 #if !REFLECTION_UTILS_NO_LINQ_EXPRESSION
@@ -202,183 +189,16 @@ namespace ReflectionUtilsNew
             ConstructorInfo constructorInfo = GetConstructorInfo(type, argsType);
             return constructorInfo == null ? null : GetConstructorByCompiledLambda(constructorInfo);
         }
-
-        public static ConstructorDelegate GetConstructorByCompiledLambda(PadLockDictionary<Type, PadLockDictionary<Type[], ConstructorDelegate>> typeCache, Type type, params Type[] argsType)
-        {
-            PadLockDictionary<Type[], ConstructorDelegate> constructorCache;
-            ConstructorDelegate ctor = null;
-            if (typeCache.TryGetValue(type, out constructorCache))
-            {
-                if (constructorCache.TryGetValue(argsType, out ctor))
-                    return ctor;
-            }
-            else
-            {
-                constructorCache = new PadLockDictionary<Type[], ConstructorDelegate>();
-            }
-
-            ConstructorInfo constructorInfo = GetConstructorInfo(type, argsType);
-            if (constructorInfo != null)
-            {
-                ParameterInfo[] paramsInfo = constructorInfo.GetParameters();
-                // create a single param of type object[]
-                ParameterExpression param = Expression.Parameter(typeof(object[]), "args");
-
-                Expression[] argsExp = new Expression[paramsInfo.Length];
-
-                // pick each arg from the params array 
-                // and create a typed expression of them
-                for (int i = 0; i < paramsInfo.Length; i++)
-                {
-                    Expression index = Expression.Constant(i);
-                    Type paramType = paramsInfo[i].ParameterType;
-                    Expression paramAccessorExp = Expression.ArrayIndex(param, index);
-                    Expression paramCastExp = Expression.Convert(paramAccessorExp, paramType);
-                    argsExp[i] = paramCastExp;
-                }
-
-                // make a NewExpression that calls the ctor with the args we just created
-                NewExpression newExp = Expression.New(constructorInfo, argsExp);
-
-                // create a lambda with the New
-                // Expression as body and our param object[] as arg
-                Expression<Func<object[], object>> lambda = Expression.Lambda<Func<object[], object>>(newExp, param);
-                Func<object[], object> compiledLambda = lambda.Compile();
-
-                ctor = delegate(object[] args) { return compiledLambda(args); };
-            }
-
-            lock (typeCache.Padlock)
-            {
-                constructorCache.TryAdd(argsType, ctor);
-                typeCache.TryAdd(type, constructorCache);
-            }
-
-            return ctor;
-        }
 #endif
 
 #if REFLECTION_UTILS_REFLECTION_EMIT
 
         private static readonly Type[] TypeofObjectArray = new Type[] { typeof(object) };
-        public static ConstructorDelegate GetConstructorByReflectionEmit(PadLockDictionary<Type, PadLockDictionary<Type[], ConstructorDelegate>> typeCache, Type type, params Type[] argsType)
-        {
-            PadLockDictionary<Type[], ConstructorDelegate> constructorCache;
-            ConstructorDelegate ctor = null;
-            if (typeCache.TryGetValue(type, out constructorCache))
-            {
-                if (constructorCache.TryGetValue(argsType, out ctor))
-                    return ctor;
-            }
-            else
-            {
-                constructorCache = new PadLockDictionary<Type[], ConstructorDelegate>();
-            }
-
-            // code from FastReflect
-            DynamicMethod dynamicMethod = new DynamicMethod("ctro_DynamicMethod" + type.FullName, typeof(object), TypeofObjectArray, typeof(ReflectionUtilsNew));
-            ILGenerator generator = dynamicMethod.GetILGenerator();
-
-            bool canCreate = true;
-            bool hasRefParams = false;
-            foreach (Type paramTypes in argsType)
-            {
-                if (paramTypes.IsByRef)
-                    hasRefParams = true;
-            }
-
-            if (type.IsValueType && argsType == EmptyTypes)
-            {
-                generator.DeclareLocal(type);
-                generator.Emit(OpCodes.Localloc, 0);
-                generator.Emit(OpCodes.Initobj, type);
-                generator.Emit(OpCodes.Ldloc_0);
-            }
-            else if (type.IsArray)
-            {
-                generator.Emit(OpCodes.Ldarg_0);
-                generator.Emit(OpCodes.Ldc_I4_0);
-                generator.Emit(OpCodes.Ldelem_Ref);
-                generator.Emit(OpCodes.Unbox_Any, typeof(int));
-                generator.Emit(OpCodes.Newarr, type.GetElementType());
-            }
-            else
-            {
-                ConstructorInfo constructorInfo = GetConstructorInfo(type, argsType);
-                if (constructorInfo == null)
-                {
-                    canCreate = false;
-                }
-                else
-                {
-                    byte startUsableLocalIndex = 0;
-
-                    if (hasRefParams)
-                    {
-                        startUsableLocalIndex = CreateLocalsForByRefParams(generator, 0, constructorInfo, argsType);
-                        generator.DeclareLocal(type);
-                    }
-
-                    PushParamsOrLocalsToStack(generator, 0, argsType);
-                    generator.Emit(OpCodes.Newobj, constructorInfo);
-
-                    if (hasRefParams)
-                    {
-                        if (startUsableLocalIndex >= byte.MinValue && startUsableLocalIndex <= byte.MaxValue)
-                        {
-                            if (startUsableLocalIndex == 0)
-                                generator.Emit(OpCodes.Stloc_0);
-                            else if (startUsableLocalIndex == 1)
-                                generator.Emit(OpCodes.Stloc_1);
-                            else if (startUsableLocalIndex == 2)
-                                generator.Emit(OpCodes.Stloc_2);
-                            else if (startUsableLocalIndex == 3)
-                                generator.Emit(OpCodes.Stloc_3);
-                            else
-                                generator.Emit(OpCodes.Stloc_S, startUsableLocalIndex);
-                        }
-
-                        byte currentByRefParams = 0;
-                        for (int i = 0; i < argsType.Length; i++)
-                        {
-                            Type argType = argsType[i];
-                            if (argType.IsByRef)
-                            {
-                                generator.Emit(OpCodes.Ldarg_0);
-                                generator.Emit(OpCodes.Ldc_I4, i);
-                                generator.Emit(OpCodes.Ldloc, currentByRefParams++);
-                                if (argType.IsValueType)
-                                    generator.Emit(OpCodes.Box, argType);
-                                generator.Emit(OpCodes.Stelem_Ref);
-                            }
-                        }
-
-                        generator.Emit(OpCodes.Ldloc, startUsableLocalIndex);
-                    }
-                }
-            }
-
-            if (canCreate)
-            {
-                if (type.IsValueType)
-                    generator.Emit(OpCodes.Box, type);
-                generator.Emit(OpCodes.Ret);
-                ctor = (ConstructorDelegate)dynamicMethod.CreateDelegate(typeof(ConstructorDelegate));
-            }
-
-            lock (typeCache.Padlock)
-            {
-                constructorCache.TryAdd(argsType, ctor);
-                typeCache.TryAdd(type, constructorCache);
-            }
-
-            return ctor;
-        }
 
         public static ConstructorDelegate GetConstructorByReflectionEmit(Type type, params Type[] argsType)
         {
             ConstructorDelegate ctor = null;
-            DynamicMethod dynamicMethod = new DynamicMethod("ctro_DynamicMethod" + type.FullName, typeof(object), TypeofObjectArray, typeof(ReflectionUtilsNew));
+            DynamicMethod dynamicMethod = new DynamicMethod("ctro_DynamicMethod" + type.FullName, typeof(object), TypeofObjectArray, typeof(ReflectionUtils));
             ILGenerator generator = dynamicMethod.GetILGenerator();
 
             bool canCreate = true;
@@ -577,12 +397,7 @@ namespace ReflectionUtilsNew
             return delegate(object source, object value) { methodInfo.Invoke(source, new object[] { value }); };
         }
 
-#if REFLECTION_UTILS_INTERNAL
-        internal
-#else
-        public
-#endif
- class PadLockDictionary<TKey, TValue>
+        public class ThreadSafeDictionary<TKey, TValue>
         {
             public readonly object Padlock = new object();
             private readonly Dictionary<TKey, TValue> _dictionary = new Dictionary<TKey, TValue>();
@@ -617,4 +432,5 @@ namespace ReflectionUtilsNew
             }
         }
     }
+
 }
