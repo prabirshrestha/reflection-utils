@@ -94,7 +94,6 @@ namespace ReflectionUtilsNew
             try
             {
                 // try creating a new object by Reflection.Emit first to see if we have enough permission.
-                ThreadSafeDictionary<Type, ThreadSafeDictionary<Type[], ConstructorDelegate>> dummyCache = new ThreadSafeDictionary<Type, ThreadSafeDictionary<Type[], ConstructorDelegate>>();
                 object dummyObj = GetConstructorByReflectionEmit(typeof(DummyClassForReflectionEmitTest), EmptyTypes)();
                 if (dummyObj != null)
                     UseReflectionEmit = true;
@@ -397,40 +396,6 @@ namespace ReflectionUtilsNew
             return delegate(object source, object value) { methodInfo.Invoke(source, new object[] { value }); };
         }
 
-        public class ThreadSafeDictionary<TKey, TValue>
-        {
-            public readonly object Padlock = new object();
-            private readonly Dictionary<TKey, TValue> _dictionary = new Dictionary<TKey, TValue>();
-
-            public bool TryGetValue(TKey key, out TValue value)
-            {
-                return _dictionary.TryGetValue(key, out value);
-            }
-
-            public TValue this[TKey key]
-            {
-                get { return _dictionary[key]; }
-                set { throw new NotImplementedException(); }
-            }
-
-            public IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator()
-            {
-                return ((ICollection<KeyValuePair<TKey, TValue>>)_dictionary).GetEnumerator();
-            }
-
-            public bool TryAdd(TKey key, TValue value)
-            {
-                if (_dictionary.ContainsKey(key) == false)
-                {
-                    _dictionary.Add(key, value);
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
-            }
-        }
     }
 
 }
