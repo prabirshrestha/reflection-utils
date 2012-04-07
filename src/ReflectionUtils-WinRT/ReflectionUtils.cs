@@ -88,6 +88,20 @@ namespace ReflectionUtils
 #else
     internal
 #endif
+ delegate GetDelegate GetDelegateFactory(MemberInfo memberInfo);
+
+#if REFLECTION_UTILS_PUBLIC
+        public
+#else
+    internal
+#endif
+ delegate SetDelegate SetDelegateFactory(MemberInfo memberInfo);
+
+#if REFLECTION_UTILS_PUBLIC
+        public
+#else
+    internal
+#endif
  static class ReflectionUtils
     {
         public static readonly Type[] EmptyTypes = new Type[] { };
@@ -408,6 +422,7 @@ namespace ReflectionUtils
         }
 
 #endif
+
         public static IEnumerable<PropertyInfo> GetProperties(Type type)
         {
 #if REFLECTION_UTILS_TYPEINFO
@@ -415,6 +430,25 @@ namespace ReflectionUtils
 #else
             return type.GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.Static);
 #endif
+        }
+
+        public static IEnumerable<FieldInfo> GetFields(Type type)
+        {
+#if REFLECTION_UTILS_TYPEINFO
+            return type.GetTypeInfo().DeclaredFields;
+#else
+            return type.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.Static);
+#endif
+        }
+
+        public static ThreadSafeDictionary<MemberInfoKey, GetDelegate> CreateGetMethodForProperitesCacheForReflection()
+        {
+            return new ThreadSafeDictionary<MemberInfoKey, GetDelegate>(delegate(MemberInfoKey key) { return GetGetMethodByReflection(key.MemberInfo as PropertyInfo); });
+        }
+
+        public static GetDelegate GetGetMethod(ThreadSafeDictionary<MemberInfoKey, GetDelegate> cache, PropertyInfo propertyInfo)
+        {
+            return cache.Get(new MemberInfoKey(propertyInfo));
         }
 
         public static GetDelegate GetGetMethodByReflection(PropertyInfo propertyInfo)
@@ -518,7 +552,88 @@ namespace ReflectionUtils
             {
                 return _type == obj._type && _argsType == obj._argsType;
             }
-
         }
+
+        public struct MemberInfoKey : IEquatable<MemberInfoKey>
+        {
+            private readonly MemberInfo _memberInfo;
+            private readonly Type _declaredType;
+            private readonly string _name;
+            private readonly Type _type;
+            private readonly bool _isField;
+            private readonly bool _isProperty;
+            private readonly bool _canRead;
+            private readonly bool _canWrite;
+
+            public MemberInfo MemberInfo { get { return _memberInfo; } }
+            public bool CanRead { get { return _canRead; } }
+
+
+            public MemberInfoKey(MemberInfo memberInfo)
+            {
+                _memberInfo = memberInfo;
+                _declaredType = memberInfo.DeclaringType;
+                _name = memberInfo.Name;
+                _type = null;
+                _canRead = false;
+                _canWrite = false;
+                FieldInfo fieldInfo = memberInfo as FieldInfo;
+                if (fieldInfo != null)
+                {
+                    _isField = true;
+                    _type = fieldInfo.FieldType;
+                    _canRead = true;
+                    _canWrite = !fieldInfo.IsInitOnly;
+                }
+                else
+                {
+                    _isField = false;
+                }
+
+                PropertyInfo propertyInfo = memberInfo as PropertyInfo;
+                if (propertyInfo != null)
+                {
+                    _isProperty = true;
+                    _type = propertyInfo.PropertyType;
+                    _canRead = propertyInfo.CanRead;
+                    _canWrite = propertyInfo.CanWrite;
+                }
+                else
+                {
+                    _isProperty = false;
+                }
+
+                if (_type == null)
+                    throw new NotSupportedException("MemberInfo not supported");
+            }
+
+            public override int GetHashCode()
+            {
+                int hash = 13;
+                hash = (hash * 7) + _declaredType.GetHashCode();
+                hash = (hash * 7) + _name.GetHashCode();
+                hash = (hash * 7) + _type.GetHashCode();
+                hash = (hash * 7) + _isField.GetHashCode();
+                hash = (hash * 7) + _isProperty.GetHashCode();
+                hash = (hash * 7) + _canRead.GetHashCode();
+                hash = (hash * 7) + _canWrite.GetHashCode();
+                return hash;
+            }
+
+            public override bool Equals(object obj)
+            {
+                if (!(obj is MemberInfoKey))
+                    return false;
+                return Equals((MemberInfoKey)obj);
+            }
+
+            public bool Equals(MemberInfoKey obj)
+            {
+                return _declaredType == obj._declaredType && _name == obj._name && _type == obj._type &&
+                    _isField == obj._isField && _isProperty == obj._isProperty &&
+                    _canRead == obj._canRead && _canWrite == obj._canWrite;
+            }
+        }
+
     }
 }

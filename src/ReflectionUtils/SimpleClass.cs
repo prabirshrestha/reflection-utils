@@ -36,6 +36,8 @@ namespace ReflectionUtils
 
         public string stringProperty { get; set; }
 
+        public string Prop { get; set; }
+
         // CreateInstance
         internal static SimpleClass CreateInstance()
         {

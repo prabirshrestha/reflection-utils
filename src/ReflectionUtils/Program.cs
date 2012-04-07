@@ -18,12 +18,16 @@
 //-----------------------------------------------------------------------
 
 using System;
+using System.Reflection;
+using System.Linq;
 
 namespace ReflectionUtils
 {
     class Program
     {
         public const int loops = 1000000;
+
+        public static PropertyInfo SamplePropertyInfo = ReflectionUtils.GetProperties(typeof(SimpleClass)).Single(p => p.Name == "Prop");
 
         static void Main(string[] args)
         {
@@ -105,23 +109,24 @@ namespace ReflectionUtils
 
         private static void GetPropertyByReflection()
         {
-            var cache = ReflectionUtils.CreateConstructorCacheForReflection();
+            var cache = ReflectionUtils.CreateGetMethodForProperitesCacheForReflection();
 
             using (new Profiler("prop.get method invoke", WriteLine))
             {
-                var obj = ReflectionUtils.GetConstructor(cache, typeof(SimpleClass), ReflectionUtils.EmptyTypes)();
+                var getter = ReflectionUtils.GetGetMethod(cache, SamplePropertyInfo);
             }
 
             using (new Profiler(WriteLine))
             {
-                var obj = ReflectionUtils.GetConstructor(cache, typeof(SimpleClass), ReflectionUtils.EmptyTypes)();
+                var getter = ReflectionUtils.GetGetMethod(cache, SamplePropertyInfo);
+
             }
 
             using (new Profiler(WriteLine))
             {
                 for (int i = 0; i < loops; i++)
                 {
-                    var obj = ReflectionUtils.GetConstructor(cache, typeof(SimpleClass), ReflectionUtils.EmptyTypes)();
+                    var getter = ReflectionUtils.GetGetMethod(cache, SamplePropertyInfo);
                 }
             }
         }
