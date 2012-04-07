@@ -18,17 +18,117 @@
 //-----------------------------------------------------------------------
 
 using System;
-using System.Diagnostics;
-using System.IO;
-using System.Reflection;
 
 namespace ReflectionUtils
 {
     class Program
     {
+        public const int loops = 1000000;
+
         static void Main(string[] args)
         {
+            GetConstructorByReflection();
+            GetConstructorByReflectionEmit();
+            GetConstructorByCompiledLambda();
 
+            GetPropertyByReflection();
+        }
+
+        private static void GetConstructorByReflection()
+        {
+            var cache = ReflectionUtils.CreateConstructorCacheForReflection();
+
+            using (new Profiler("ctor method invoke", WriteLine))
+            {
+                var obj = ReflectionUtils.GetConstructor(cache, typeof(SimpleClass), ReflectionUtils.EmptyTypes)();
+            }
+
+            using (new Profiler(WriteLine))
+            {
+                var obj = ReflectionUtils.GetConstructor(cache, typeof(SimpleClass), ReflectionUtils.EmptyTypes)();
+            }
+
+            using (new Profiler(WriteLine))
+            {
+                for (int i = 0; i < loops; i++)
+                {
+                    var obj = ReflectionUtils.GetConstructor(cache, typeof(SimpleClass), ReflectionUtils.EmptyTypes)();
+                }
+            }
+        }
+
+        private static void GetConstructorByReflectionEmit()
+        {
+            var cache = ReflectionUtils.CreateConstructorCacheForReflectionEmit();
+
+            using (new Profiler("ctor reflection.emit", WriteLine))
+            {
+                var obj = ReflectionUtils.GetConstructor(cache, typeof(SimpleClass), ReflectionUtils.EmptyTypes)();
+            }
+
+            using (new Profiler(WriteLine))
+            {
+                var obj = ReflectionUtils.GetConstructor(cache, typeof(SimpleClass), ReflectionUtils.EmptyTypes)();
+            }
+
+            using (new Profiler(WriteLine))
+            {
+                for (int i = 0; i < loops; i++)
+                {
+                    var obj = ReflectionUtils.GetConstructor(cache, typeof(SimpleClass), ReflectionUtils.EmptyTypes)();
+                }
+            }
+        }
+
+        private static void GetConstructorByCompiledLambda()
+        {
+            var cache = ReflectionUtils.CreateConstructorCacheForCompiledLambda();
+
+            using (new Profiler("ctor compiled lambda", WriteLine))
+            {
+                var obj = ReflectionUtils.GetConstructor(cache, typeof(SimpleClass), ReflectionUtils.EmptyTypes)();
+            }
+
+            using (new Profiler(WriteLine))
+            {
+                var obj = ReflectionUtils.GetConstructor(cache, typeof(SimpleClass), ReflectionUtils.EmptyTypes)();
+            }
+
+            using (new Profiler(WriteLine))
+            {
+                for (int i = 0; i < loops; i++)
+                {
+                    var obj = ReflectionUtils.GetConstructor(cache, typeof(SimpleClass), ReflectionUtils.EmptyTypes)();
+                }
+            }
+        }
+
+        private static void GetPropertyByReflection()
+        {
+            var cache = ReflectionUtils.CreateConstructorCacheForReflection();
+
+            using (new Profiler("prop.get method invoke", WriteLine))
+            {
+                var obj = ReflectionUtils.GetConstructor(cache, typeof(SimpleClass), ReflectionUtils.EmptyTypes)();
+            }
+
+            using (new Profiler(WriteLine))
+            {
+                var obj = ReflectionUtils.GetConstructor(cache, typeof(SimpleClass), ReflectionUtils.EmptyTypes)();
+            }
+
+            using (new Profiler(WriteLine))
+            {
+                for (int i = 0; i < loops; i++)
+                {
+                    var obj = ReflectionUtils.GetConstructor(cache, typeof(SimpleClass), ReflectionUtils.EmptyTypes)();
+                }
+            }
+        }
+
+        public static void WriteLine(string msg)
+        {
+            Console.WriteLine(msg);
         }
     }
 }

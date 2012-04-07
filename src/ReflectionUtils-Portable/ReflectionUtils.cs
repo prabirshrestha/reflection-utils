@@ -36,7 +36,7 @@
 #define REFLECTION_UTILS_TYPEINFO
 #endif
 
-namespace ReflectionUtilsNew
+namespace ReflectionUtils
 {
     using System;
     using System.Collections.Generic;
@@ -81,6 +81,13 @@ namespace ReflectionUtilsNew
 #else
     internal
 #endif
+ delegate TValue ThreadSafeDictionaryValueFactory<TKey, TValue>(TKey key);
+
+#if REFLECTION_UTILS_PUBLIC
+        public
+#else
+    internal
+#endif
  static class ReflectionUtils
     {
         public static readonly Type[] EmptyTypes = new Type[] { };
@@ -89,6 +96,7 @@ namespace ReflectionUtilsNew
 #if REFLECTION_UTILS_REFLECTION_EMIT
 
         private static readonly bool UseReflectionEmit;
+
         static ReflectionUtils()
         {
             try
@@ -98,7 +106,9 @@ namespace ReflectionUtilsNew
                 if (dummyObj != null)
                     UseReflectionEmit = true;
             }
-            catch { }
+            catch
+            {
+            }
         }
 #endif
 
@@ -140,6 +150,16 @@ namespace ReflectionUtilsNew
             return null;
         }
 
+        public static ThreadSafeDictionary<ConstructorKey, ConstructorDelegate> CreateConstructorCacheForReflection()
+        {
+            return new ThreadSafeDictionary<ConstructorKey, ConstructorDelegate>(delegate(ConstructorKey key) { return GetConstructorByReflection(key.Type, key.ArgsType); });
+        }
+
+        public static ConstructorDelegate GetConstructor(ThreadSafeDictionary<ConstructorKey, ConstructorDelegate> cache, Type type, params Type[] argsType)
+        {
+            return cache.Get(new ConstructorKey(type, argsType));
+        }
+
         public static ConstructorDelegate GetConstructorByReflection(ConstructorInfo constructorInfo)
         {
             return delegate(object[] args) { return constructorInfo.Invoke(args); };
@@ -152,6 +172,11 @@ namespace ReflectionUtilsNew
         }
 
 #if !REFLECTION_UTILS_NO_LINQ_EXPRESSION
+
+        public static ThreadSafeDictionary<ConstructorKey, ConstructorDelegate> CreateConstructorCacheForCompiledLambda()
+        {
+            return new ThreadSafeDictionary<ConstructorKey, ConstructorDelegate>(delegate(ConstructorKey key) { return GetConstructorByCompiledLambda(key.Type, key.ArgsType); });
+        }
 
         public static ConstructorDelegate GetConstructorByCompiledLambda(ConstructorInfo constructorInfo)
         {
@@ -194,10 +219,16 @@ namespace ReflectionUtilsNew
 
         private static readonly Type[] TypeofObjectArray = new Type[] { typeof(object) };
 
+        public static ThreadSafeDictionary<ConstructorKey, ConstructorDelegate> CreateConstructorCacheForReflectionEmit()
+        {
+            return new ThreadSafeDictionary<ConstructorKey, ConstructorDelegate>(delegate(ConstructorKey key) { return GetConstructorByReflectionEmit(key.Type, key.ArgsType); });
+        }
+
         public static ConstructorDelegate GetConstructorByReflectionEmit(Type type, params Type[] argsType)
         {
             ConstructorDelegate ctor = null;
-            DynamicMethod dynamicMethod = new DynamicMethod("ctro_DynamicMethod" + type.FullName, typeof(object), TypeofObjectArray, typeof(ReflectionUtils));
+            DynamicMethod dynamicMethod = new DynamicMethod("ctro_DynamicMethod" + type.FullName, typeof(object),
+                                                            TypeofObjectArray, typeof(ReflectionUtils));
             ILGenerator generator = dynamicMethod.GetILGenerator();
 
             bool canCreate = true;
@@ -372,10 +403,11 @@ namespace ReflectionUtilsNew
             }
         }
 
-        class DummyClassForReflectionEmitTest { }
+        private class DummyClassForReflectionEmitTest
+        {
+        }
 
 #endif
-
         public static GetDelegate GetGetMethodByReflection(PropertyInfo propertyInfo)
         {
 #if REFLECTION_UTILS_TYPEINFO
@@ -396,6 +428,88 @@ namespace ReflectionUtilsNew
             return delegate(object source, object value) { methodInfo.Invoke(source, new object[] { value }); };
         }
 
-    }
+        public sealed class ThreadSafeDictionary<TKey, TValue>
+        {
+            private readonly object _lock = new object();
+            private readonly ThreadSafeDictionaryValueFactory<TKey, TValue> _valueFactory;
+            private Dictionary<TKey, TValue> _dictionary;
 
+            public ThreadSafeDictionary(ThreadSafeDictionaryValueFactory<TKey, TValue> valueFactory)
+            {
+                _valueFactory = valueFactory;
+            }
+
+            public TValue Get(TKey key)
+            {
+                if (_dictionary == null)
+                    return AddValue(key);
+
+                TValue value;
+                if (!_dictionary.TryGetValue(key, out value))
+                    return AddValue(key);
+
+                return value;
+            }
+
+            private TValue AddValue(TKey key)
+            {
+                TValue value = _valueFactory(key);
+
+                lock (_lock)
+                {
+                    if (_dictionary == null)
+                    {
+                        _dictionary = new Dictionary<TKey, TValue>();
+                        _dictionary[key] = value;
+                    }
+                    else
+                    {
+                        TValue val;
+                        if (_dictionary.TryGetValue(key, out val))
+                            return val;
+                        Dictionary<TKey, TValue> dict = new Dictionary<TKey, TValue>(_dictionary);
+                        dict[key] = value;
+                        _dictionary = dict;
+                    }
+                }
+                return value;
+            }
+        }
+
+        public struct ConstructorKey : IEquatable<ConstructorKey>
+        {
+            private readonly Type _type;
+            private readonly Type[] _argsType;
+
+            public Type Type { get { return _type; } }
+            public Type[] ArgsType { get { return _argsType; } }
+
+            public ConstructorKey(Type type, params Type[] argsType)
+            {
+                _type = type;
+                _argsType = argsType;
+            }
+
+            public override int GetHashCode()
+            {
+                int hash = 13;
+                hash = (hash * 7) + _type.GetHashCode();
+                hash = (hash * 7) + _argsType.GetHashCode();
+                return hash;
+            }
+
+            public override bool Equals(object obj)
+            {
+                if (!(obj is ConstructorKey))
+                    return false;
+                return Equals((ConstructorKey)obj);
+            }
+
+            public bool Equals(ConstructorKey obj)
+            {
+                return _type == obj._type && _argsType == obj._argsType;
+            }
+
+        }
+    }
 }
