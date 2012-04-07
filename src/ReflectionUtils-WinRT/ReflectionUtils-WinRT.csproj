@@ -35,12 +35,6 @@
     <!-- A reference to the entire .Net Framework and Windows SDK are automatically included -->
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="..\ReflectionUtils-Portable\ReflectionUtils.cs">
-      <Link>Images\ReflectionUtils.cs</Link>
-    </Compile>
-    <Compile Include="..\ReflectionUtils\ReflectionUtils.cs">
-      <Link>ReflectionUtils.cs</Link>
-    </Compile>
     <Compile Include="..\ReflectionUtils\SimpleClass.cs">
       <Link>SimpleClass.cs</Link>
     </Compile>
@@ -51,6 +45,7 @@
       <DependentUpon>MainPage.xaml</DependentUpon>
     </Compile>
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="ReflectionUtils.cs" />
   </ItemGroup>
   <ItemGroup>
     <AppxManifest Include="Package.appxmanifest">

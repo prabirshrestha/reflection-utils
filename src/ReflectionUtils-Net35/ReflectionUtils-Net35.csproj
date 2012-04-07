@@ -38,7 +38,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="..\ReflectionUtils-Portable\ReflectionUtils.cs">
+    <Compile Include="..\ReflectionUtils-WinRT\ReflectionUtils.cs">
       <Link>ReflectionUtils.cs</Link>
     </Compile>
     <Compile Include="Properties\AssemblyInfo.cs" />

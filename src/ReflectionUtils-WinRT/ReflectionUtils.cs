@@ -408,6 +408,15 @@ namespace ReflectionUtils
         }
 
 #endif
+        public static IEnumerable<PropertyInfo> GetProperties(Type type)
+        {
+#if REFLECTION_UTILS_TYPEINFO
+            return type.GetTypeInfo().DeclaredProperties;
+#else
+            return type.GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.Static);
+#endif
+        }
+
         public static GetDelegate GetGetMethodByReflection(PropertyInfo propertyInfo)
         {
 #if REFLECTION_UTILS_TYPEINFO
