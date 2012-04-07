@@ -79,6 +79,7 @@ namespace ReflectionUtils
             GetNewInstanceByCompiledLambda();
 
             GetGetMethod();
+            GetSetMethod();
         }
 
         private static void GetNewInstanceByReflection()
@@ -150,12 +151,29 @@ namespace ReflectionUtils
             EndTest();
 
             StartTest("get.reflection - " + loops);
-
             for (int i = 2; i < loops; i++)
             {
                 object value = getter(simpleClass);
             }
+            EndTest();
+        }
 
+        private static void GetSetMethod()
+        {
+            StartTest("get.reflection - first");
+            var setter = ReflectionUtilsNew.ReflectionUtilsNew.GetSetMethodByReflection(propertyInfo);
+            setter(simpleClass, "a");
+            EndTest();
+
+            StartTest("get.reflection - second");
+            setter(simpleClass, "b");
+            EndTest();
+
+            StartTest("get.reflection - " + loops);
+            for (int i = 2; i < loops; i++)
+            {
+                setter(simpleClass, "c");
+            }
             EndTest();
         }
 

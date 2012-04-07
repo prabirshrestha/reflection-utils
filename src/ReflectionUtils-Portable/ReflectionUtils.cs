@@ -54,6 +54,7 @@ namespace ReflectionUtilsNew
     public static class ReflectionUtilsNew
     {
         public static readonly Type[] EmptyTypes = new Type[] { };
+        private static readonly object[] EmptyObjects = new object[] { };
 
 #if REFLECTION_UTILS_REFLECTION_EMIT
 
@@ -417,7 +418,17 @@ namespace ReflectionUtilsNew
 #else
             MethodInfo methodInfo = propertyInfo.GetGetMethod(true);
 #endif
-            return delegate(object source) { return methodInfo.Invoke(source, EmptyTypes); };
+            return delegate(object source) { return methodInfo.Invoke(source, EmptyObjects); };
+        }
+
+        public static SetDelegate GetSetMethodByReflection(PropertyInfo propertyInfo)
+        {
+#if REFLECTION_UTILS_TYPEINFO
+            MethodInfo methodInfo = propertyInfo.SetMethod;
+#else
+            MethodInfo methodInfo = propertyInfo.GetSetMethod(true);
+#endif
+            return delegate(object source, object value) { methodInfo.Invoke(source, new object[] { value }); };
         }
 
 #if REFLECTION_UTILS_INTERNAL
