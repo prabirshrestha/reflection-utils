@@ -47,6 +47,10 @@ namespace ReflectionUtilsNew
 
     public delegate object ConstructorDelegate(params object[] args);
 
+    public delegate object GetDelegate(object source);
+
+    public delegate void SetDelegate(object source, object value);
+
     public static class ReflectionUtilsNew
     {
         public static readonly Type[] EmptyTypes = new Type[] { };
