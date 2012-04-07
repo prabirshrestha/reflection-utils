@@ -373,6 +373,102 @@ namespace ReflectionUtilsNew
             return ctor;
         }
 
+        public static ConstructorDelegate GetConstructorByReflectionEmit(Type type, params Type[] argsType)
+        {
+            ConstructorDelegate ctor = null;
+            DynamicMethod dynamicMethod = new DynamicMethod("ctro_DynamicMethod" + type.FullName, typeof(object), TypeofObjectArray, typeof(ReflectionUtilsNew));
+            ILGenerator generator = dynamicMethod.GetILGenerator();
+
+            bool canCreate = true;
+            bool hasRefParams = false;
+            foreach (Type paramTypes in argsType)
+            {
+                if (paramTypes.IsByRef)
+                    hasRefParams = true;
+            }
+
+            if (type.IsValueType && argsType == EmptyTypes)
+            {
+                generator.DeclareLocal(type);
+                generator.Emit(OpCodes.Localloc, 0);
+                generator.Emit(OpCodes.Initobj, type);
+                generator.Emit(OpCodes.Ldloc_0);
+            }
+            else if (type.IsArray)
+            {
+                generator.Emit(OpCodes.Ldarg_0);
+                generator.Emit(OpCodes.Ldc_I4_0);
+                generator.Emit(OpCodes.Ldelem_Ref);
+                generator.Emit(OpCodes.Unbox_Any, typeof(int));
+                generator.Emit(OpCodes.Newarr, type.GetElementType());
+            }
+            else
+            {
+                ConstructorInfo constructorInfo = GetConstructorInfo(type, argsType);
+                if (constructorInfo == null)
+                {
+                    canCreate = false;
+                }
+                else
+                {
+                    byte startUsableLocalIndex = 0;
+
+                    if (hasRefParams)
+                    {
+                        startUsableLocalIndex = CreateLocalsForByRefParams(generator, 0, constructorInfo, argsType);
+                        generator.DeclareLocal(type);
+                    }
+
+                    PushParamsOrLocalsToStack(generator, 0, argsType);
+                    generator.Emit(OpCodes.Newobj, constructorInfo);
+
+                    if (hasRefParams)
+                    {
+                        if (startUsableLocalIndex >= byte.MinValue && startUsableLocalIndex <= byte.MaxValue)
+                        {
+                            if (startUsableLocalIndex == 0)
+                                generator.Emit(OpCodes.Stloc_0);
+                            else if (startUsableLocalIndex == 1)
+                                generator.Emit(OpCodes.Stloc_1);
+                            else if (startUsableLocalIndex == 2)
+                                generator.Emit(OpCodes.Stloc_2);
+                            else if (startUsableLocalIndex == 3)
+                                generator.Emit(OpCodes.Stloc_3);
+                            else
+                                generator.Emit(OpCodes.Stloc_S, startUsableLocalIndex);
+                        }
+
+                        byte currentByRefParams = 0;
+                        for (int i = 0; i < argsType.Length; i++)
+                        {
+                            Type argType = argsType[i];
+                            if (argType.IsByRef)
+                            {
+                                generator.Emit(OpCodes.Ldarg_0);
+                                generator.Emit(OpCodes.Ldc_I4, i);
+                                generator.Emit(OpCodes.Ldloc, currentByRefParams++);
+                                if (argType.IsValueType)
+                                    generator.Emit(OpCodes.Box, argType);
+                                generator.Emit(OpCodes.Stelem_Ref);
+                            }
+                        }
+
+                        generator.Emit(OpCodes.Ldloc, startUsableLocalIndex);
+                    }
+                }
+            }
+
+            if (canCreate)
+            {
+                if (type.IsValueType)
+                    generator.Emit(OpCodes.Box, type);
+                generator.Emit(OpCodes.Ret);
+                ctor = (ConstructorDelegate)dynamicMethod.CreateDelegate(typeof(ConstructorDelegate));
+            }
+
+            return ctor;
+        }
+
         private static byte CreateLocalsForByRefParams(ILGenerator generator, byte paramArrayIndex, ConstructorInfo constructorInfo, Type[] argsType)
         {
             byte numberOfByRefParams = 0;
