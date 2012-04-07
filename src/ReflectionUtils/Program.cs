@@ -18,6 +18,8 @@
 //-----------------------------------------------------------------------
 
 using System;
+using System.Diagnostics;
+using System.IO;
 using System.Reflection;
 
 namespace ReflectionUtils
@@ -30,13 +32,19 @@ namespace ReflectionUtils
         private static SimpleClass simpleClass = SimpleClass.CreateInstance();
         private static FieldInfo fieldInfo = type.GetField("stringField", BINDING_FLAGS);
         private static PropertyInfo propertyInfo = type.GetProperty("stringProperty", BINDING_FLAGS);
+        static int loops;
+        static Stopwatch stopwatch;
 
         static void Main(string[] args)
         {
-            Console.WriteLine("How Many Test Iterations Would You Like To Run?");
+            //Console.WriteLine("How Many Test Iterations Would You Like To Run?");
             //int loops = int.Parse(Console.ReadLine());
 
-            int loops = 10000;
+            loops = 100000;
+
+            RunBenchmarks();
+
+            return;
             Console.WriteLine(typeof(IConvertible).IsAssignableFrom(typeof(int)));
             Console.WriteLine(typeof(IConvertible).IsAssignableFrom(typeof(long)));
             Console.WriteLine(typeof(IConvertible).IsAssignableFrom(typeof(double)));
@@ -64,6 +72,72 @@ namespace ReflectionUtils
             GetPropertyValueUsingDynamicMethodCall(loops);
         }
 
+        private static void RunBenchmarks()
+        {
+            GetNewInstanceByReflection();
+            GetNewInstanceByReflectionEmit();
+            GetNewInstanceByCompiledLambda();
+        }
+
+        private static void GetNewInstanceByReflection()
+        {
+            var cache = new ReflectionUtilsNew.ReflectionUtilsNew.PadLockDictionary<Type, ReflectionUtilsNew.ReflectionUtilsNew.PadLockDictionary<Type[], ReflectionUtilsNew.ConstructorDelegate>>();
+            StartTest("constructorInfo.Invoke - first");
+            object first = ReflectionUtilsNew.ReflectionUtilsNew.GetConstructorByReflection(cache, type, ReflectionUtilsNew.ReflectionUtilsNew.EmptyTypes)();
+            EndTest();
+
+            StartTest("constructorInfo.Invoke - second");
+            object second = ReflectionUtilsNew.ReflectionUtilsNew.GetConstructorByReflection(cache, type, ReflectionUtilsNew.ReflectionUtilsNew.EmptyTypes)();
+            EndTest();
+
+            StartTest("constructorInfo.Invoke - " + loops);
+            for (int i = 2; i < loops; i++)
+            {
+                object multiple = ReflectionUtilsNew.ReflectionUtilsNew.GetConstructorByReflection(cache, type, ReflectionUtilsNew.ReflectionUtilsNew.EmptyTypes)();
+            }
+            EndTest();
+        }
+
+        private static void GetNewInstanceByReflectionEmit()
+        {
+            var cache = new ReflectionUtilsNew.ReflectionUtilsNew.PadLockDictionary<Type, ReflectionUtilsNew.ReflectionUtilsNew.PadLockDictionary<Type[], ReflectionUtilsNew.ConstructorDelegate>>();
+            StartTest("dynamicMethod - first");
+            object first = ReflectionUtilsNew.ReflectionUtilsNew.GetConstructorByReflectionEmit(cache, type, ReflectionUtilsNew.ReflectionUtilsNew.EmptyTypes)();
+            EndTest();
+
+            StartTest("dynamicMethod - second");
+            object second = ReflectionUtilsNew.ReflectionUtilsNew.GetConstructorByReflectionEmit(cache, type, ReflectionUtilsNew.ReflectionUtilsNew.EmptyTypes)();
+            EndTest();
+
+            StartTest("dynamicMethod - " + loops);
+            for (int i = 2; i < loops; i++)
+            {
+                object multiple = ReflectionUtilsNew.ReflectionUtilsNew.GetConstructorByReflectionEmit(cache, type, ReflectionUtilsNew.ReflectionUtilsNew.EmptyTypes)();
+            }
+            EndTest();
+        }
+
+        private static void GetNewInstanceByCompiledLambda()
+        {
+            var cache = new ReflectionUtilsNew.ReflectionUtilsNew.PadLockDictionary<Type, ReflectionUtilsNew.ReflectionUtilsNew.PadLockDictionary<Type[], ReflectionUtilsNew.ConstructorDelegate>>();
+            StartTest("lambda.Compile - first");
+            object first = ReflectionUtilsNew.ReflectionUtilsNew.GetConstructorByCompiledLambda(cache, type, ReflectionUtilsNew.ReflectionUtilsNew.EmptyTypes)();
+            EndTest();
+
+            StartTest("lambda.Compile - second");
+            object second = ReflectionUtilsNew.ReflectionUtilsNew.GetConstructorByCompiledLambda(cache, type, ReflectionUtilsNew.ReflectionUtilsNew.EmptyTypes)();
+            EndTest();
+
+            StartTest("lambda.Compile - " + loops);
+            for (int i = 2; i < loops; i++)
+            {
+                object multiple = ReflectionUtilsNew.ReflectionUtilsNew.GetConstructorByCompiledLambda(cache, type, ReflectionUtilsNew.ReflectionUtilsNew.EmptyTypes)();
+            }
+            EndTest();
+        }
+
+        // ---------------------------
+
         private static void CreateObjectUsingReflection(int loops)
         {
             StartTest("Begin CreateObjectUsingReflection");
@@ -80,7 +154,6 @@ namespace ReflectionUtils
         private static void CreateObjectUsingDynamicMethodCall(int loops)
         {
             StartTest("Begin CreateObjectUsingDynamicMethodCall");
-
 
             for (int i = 0; i < loops; i++)
             {
@@ -200,11 +273,16 @@ namespace ReflectionUtils
         // StartTest
         private static void StartTest(string message)
         {
-            lastTestStartTime = DateTime.Now;
             Console.WriteLine(message);
+            stopwatch = Stopwatch.StartNew();
         }
 
         // EndTest
+        private static void EndTest()
+        {
+            stopwatch.Stop();
+            Console.WriteLine(stopwatch.Elapsed);
+        }
         private static void EndTest(string message)
         {
             Console.WriteLine(message);

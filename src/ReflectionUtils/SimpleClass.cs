@@ -17,12 +17,17 @@
 // <website>https://github.com/facebook-csharp-sdk/ReflectionUtils</website>
 //-----------------------------------------------------------------------
 
+using System;
 namespace ReflectionUtils
 {
     public class SimpleClass
     {
         // SimpleClass
         public SimpleClass()
+        {
+        }
+
+        private SimpleClass(Type t)
         {
         }
 
