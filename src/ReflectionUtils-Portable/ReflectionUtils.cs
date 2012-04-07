@@ -51,6 +51,8 @@ namespace ReflectionUtilsNew
 
     public delegate void SetDelegate(object source, object value);
 
+    public delegate object MethodDelegate(object source, params object[] args);
+
     public static class ReflectionUtilsNew
     {
         public static readonly Type[] EmptyTypes = new Type[] { };
