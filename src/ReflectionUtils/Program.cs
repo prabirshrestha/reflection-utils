@@ -37,12 +37,14 @@ namespace ReflectionUtils
             GetConstructorByCompiledLambda();
 
             GetPropertyByReflection();
+            GetPropertyByReflectionEmit();
 
-            SetPropertyByReflectionEmit();
+            SetPropertyByReflection();
 
             GetFieldByReflection();
+            GetFieldByReflectionEmit();
 
-            SetFieldByReflectionEmit();
+            SetFieldByReflection();
         }
 
         private static void GetConstructorByReflection()
@@ -141,7 +143,34 @@ namespace ReflectionUtils
             }
         }
 
-        private static void SetPropertyByReflectionEmit()
+        private static void GetPropertyByReflectionEmit()
+        {
+            var cache = ReflectionUtils.CreateGetMethodForMemberInfoCacheForReflectionEmit();
+
+            var obj = new SimpleClass();
+            using (new Profiler("prop.get reflection emit", WriteLine))
+            {
+                var getter = ReflectionUtils.GetGetMethod(cache, SamplePropertyInfo);
+                var value = getter(obj);
+            }
+
+            using (new Profiler(WriteLine))
+            {
+                var getter = ReflectionUtils.GetGetMethod(cache, SamplePropertyInfo);
+                var value = getter(obj);
+            }
+
+            using (new Profiler(WriteLine))
+            {
+                for (int i = 0; i < loops; i++)
+                {
+                    var getter = ReflectionUtils.GetGetMethod(cache, SamplePropertyInfo);
+                    var value = getter(obj);
+                }
+            }
+        }
+
+        private static void SetPropertyByReflection()
         {
             var cache = ReflectionUtils.CreateSetMethodForMemberInfoCacheForReflection();
 
@@ -195,7 +224,34 @@ namespace ReflectionUtils
             }
         }
 
-        private static void SetFieldByReflectionEmit()
+        private static void GetFieldByReflectionEmit()
+        {
+            var cache = ReflectionUtils.CreateGetMethodForMemberInfoCacheForReflectionEmit();
+
+            var obj = new SimpleClass();
+            using (new Profiler("field.get reflection emit", WriteLine))
+            {
+                var getter = ReflectionUtils.GetGetMethod(cache, SampleFieldInfo);
+                var value = getter(obj);
+            }
+
+            using (new Profiler(WriteLine))
+            {
+                var getter = ReflectionUtils.GetGetMethod(cache, SampleFieldInfo);
+                var value = getter(obj);
+            }
+
+            using (new Profiler(WriteLine))
+            {
+                for (int i = 0; i < loops; i++)
+                {
+                    var getter = ReflectionUtils.GetGetMethod(cache, SampleFieldInfo);
+                    var value = getter(obj);
+                }
+            }
+        }
+
+        private static void SetFieldByReflection()
         {
             var cache = ReflectionUtils.CreateSetMethodForMemberInfoCacheForReflection();
 

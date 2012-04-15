@@ -255,8 +255,7 @@ namespace ReflectionUtils
         public static ConstructorDelegate GetConstructorByReflectionEmit(Type type, params Type[] argsType)
         {
             ConstructorDelegate ctor = null;
-            DynamicMethod dynamicMethod = new DynamicMethod("ctro_DynamicMethod" + type.FullName, typeof(object),
-                                                            TypeofObjectArray, typeof(ReflectionUtils));
+            DynamicMethod dynamicMethod = new DynamicMethod("ctor_DynamicMethod" + type.FullName, typeof(object), TypeofObjectArray, typeof(ReflectionUtils));
             ILGenerator generator = dynamicMethod.GetILGenerator();
 
             bool canCreate = true;
@@ -485,6 +484,70 @@ namespace ReflectionUtils
         {
             return delegate(object source) { return fieldInfo.GetValue(source); };
         }
+
+#if REFLECTION_UTILS_REFLECTION_EMIT
+
+        public static ThreadSafeDictionary<MemberInfoKey, GetDelegate> CreateGetMethodForMemberInfoCacheForReflectionEmit()
+        {
+            return CreateGetMethodForMemberInfoCacheForReflectionEmit(false);
+        }
+
+        public static ThreadSafeDictionary<MemberInfoKey, GetDelegate> CreateGetMethodForMemberInfoCacheForReflectionEmit(bool forceReflectionEmit)
+        {
+            if (!forceReflectionEmit)
+            {
+                if (!CanSafelyUseUseReflectionEmit)
+                    return CreateGetMethodForMemberInfoCacheForReflection();
+            }
+
+            return new ThreadSafeDictionary<MemberInfoKey, GetDelegate>(
+                delegate(MemberInfoKey key)
+                {
+                    return key.IsProperty
+                               ? GetGetMethodByReflectionEmit(key.MemberInfo as PropertyInfo)
+                               : GetGetMethodByReflectionEmit(key.MemberInfo as FieldInfo);
+                });
+        }
+
+        public static GetDelegate GetGetMethodByReflectionEmit(PropertyInfo propertyInfo)
+        {
+#if NETFX_CORE
+            MethodInfo getMethodInfo = propertyInfo.GetMethod;
+#else
+            MethodInfo getMethodInfo = propertyInfo.GetGetMethod(true);
+#endif
+            if (getMethodInfo == null)
+                return null;
+
+            Type type = propertyInfo.PropertyType;
+            DynamicMethod dynamicMethod = new DynamicMethod("get_DynamicMethod" + type.FullName, propertyInfo.DeclaringType, TypeofObjectArray, propertyInfo.DeclaringType);
+            ILGenerator getGenerator = dynamicMethod.GetILGenerator();
+
+            getGenerator.Emit(OpCodes.Ldarg_0);
+            getGenerator.Emit(OpCodes.Call, getMethodInfo);
+            if (type.IsValueType)
+                getGenerator.Emit(OpCodes.Box, type);
+            getGenerator.Emit(OpCodes.Ret);
+
+            return (GetDelegate)dynamicMethod.CreateDelegate(typeof(GetDelegate));
+        }
+
+        public static GetDelegate GetGetMethodByReflectionEmit(FieldInfo fieldInfo)
+        {
+            Type type = fieldInfo.FieldType;
+            DynamicMethod dynamicGet = new DynamicMethod("get_DynamicMethod" + type.FullName, fieldInfo.DeclaringType, TypeofObjectArray, fieldInfo.DeclaringType);
+            ILGenerator getGenerator = dynamicGet.GetILGenerator();
+
+            getGenerator.Emit(OpCodes.Ldarg_0);
+            getGenerator.Emit(OpCodes.Ldfld, fieldInfo);
+            if (type.IsValueType)
+                getGenerator.Emit(OpCodes.Box, type);
+            getGenerator.Emit(OpCodes.Ret);
+
+            return (GetDelegate)dynamicGet.CreateDelegate(typeof(GetDelegate));
+        }
+
+#endif
 
         public static ThreadSafeDictionary<MemberInfoKey, SetDelegate> CreateSetMethodForMemberInfoCacheForReflection()
         {
