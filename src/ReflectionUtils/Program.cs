@@ -17,12 +17,12 @@
 // <website>https://github.com/facebook-csharp-sdk/reflection-utils</website>
 //-----------------------------------------------------------------------
 
-using System;
-using System.Reflection;
-using System.Linq;
-
 namespace ReflectionUtils
 {
+    using System;
+    using System.Linq;
+    using System.Reflection;
+
     class Program
     {
         public const int loops = 1000000;
@@ -41,6 +41,8 @@ namespace ReflectionUtils
             SetPropertyByReflectionEmit();
 
             GetFieldByReflection();
+
+            SetFieldByReflectionEmit();
         }
 
         private static void GetConstructorByReflection()
@@ -189,6 +191,33 @@ namespace ReflectionUtils
                 {
                     var getter = ReflectionUtils.GetGetMethod(cache, SampleFieldInfo);
                     var value = getter(obj);
+                }
+            }
+        }
+
+        private static void SetFieldByReflectionEmit()
+        {
+            var cache = ReflectionUtils.CreateSetMethodForMemberInfoCacheForReflection();
+
+            var obj = new SimpleClass();
+            using (new Profiler("field.set method invoke", WriteLine))
+            {
+                var setter = ReflectionUtils.GetSetMethod(cache, SampleFieldInfo);
+                setter(obj, "val");
+            }
+
+            using (new Profiler(WriteLine))
+            {
+                var setter = ReflectionUtils.GetSetMethod(cache, SampleFieldInfo);
+                setter(obj, "val");
+            }
+
+            using (new Profiler(WriteLine))
+            {
+                for (int i = 0; i < loops; i++)
+                {
+                    var setter = ReflectionUtils.GetSetMethod(cache, SampleFieldInfo);
+                    setter(obj, "val");
                 }
             }
         }

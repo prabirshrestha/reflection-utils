@@ -459,11 +459,11 @@ namespace ReflectionUtils
         {
             return new ThreadSafeDictionary<MemberInfoKey, GetDelegate>(
                 delegate(MemberInfoKey key)
-                    {
-                        return key.IsProperty
-                                   ? GetGetMethodByReflection(key.MemberInfo as PropertyInfo)
-                                   : GetGetMethodByReflection(key.MemberInfo as FieldInfo);
-                    });
+                {
+                    return key.IsProperty
+                               ? GetGetMethodByReflection(key.MemberInfo as PropertyInfo)
+                               : GetGetMethodByReflection(key.MemberInfo as FieldInfo);
+                });
         }
 
         public static GetDelegate GetGetMethod(ThreadSafeDictionary<MemberInfoKey, GetDelegate> cache, MemberInfo propertyInfo)
@@ -488,7 +488,13 @@ namespace ReflectionUtils
 
         public static ThreadSafeDictionary<MemberInfoKey, SetDelegate> CreateSetMethodForMemberInfoCacheForReflection()
         {
-            return new ThreadSafeDictionary<MemberInfoKey, SetDelegate>(delegate(MemberInfoKey key) { return GetSetMethodByReflection(key.MemberInfo as PropertyInfo); });
+            return new ThreadSafeDictionary<MemberInfoKey, SetDelegate>(
+                 delegate(MemberInfoKey key)
+                 {
+                     return key.IsProperty
+                                ? GetSetMethodByReflection(key.MemberInfo as PropertyInfo)
+                                : GetSetMethodByReflection(key.MemberInfo as FieldInfo);
+                 });
         }
 
         public static SetDelegate GetSetMethod(ThreadSafeDictionary<MemberInfoKey, SetDelegate> cache, MemberInfo propertyInfo)
@@ -504,6 +510,11 @@ namespace ReflectionUtils
             MethodInfo methodInfo = propertyInfo.GetSetMethod(true);
 #endif
             return delegate(object source, object value) { methodInfo.Invoke(source, new object[] { value }); };
+        }
+
+        public static SetDelegate GetSetMethodByReflection(FieldInfo fieldInfo)
+        {
+            return delegate(object source, object value) { fieldInfo.SetValue(source, value); };
         }
 
         public sealed class ThreadSafeDictionary<TKey, TValue>
