@@ -14,7 +14,7 @@
 //    limitations under the License.
 // </copyright>
 // <author>Prabir Shrestha (prabir.me)</author>
-// <website>https://github.com/facebook-csharp-sdk/ReflectionUtils</website>
+// <website>https://github.com/facebook-csharp-sdk/reflection-utils</website>
 //-----------------------------------------------------------------------
 
 using System;
@@ -36,6 +36,8 @@ namespace ReflectionUtils
             GetConstructorByCompiledLambda();
 
             GetPropertyByReflection();
+
+            SetPropertyByReflectionEmit();
         }
 
         private static void GetConstructorByReflection()
@@ -111,15 +113,17 @@ namespace ReflectionUtils
         {
             var cache = ReflectionUtils.CreateGetMethodForProperitesCacheForReflection();
 
+            var obj = new SimpleClass();
             using (new Profiler("prop.get method invoke", WriteLine))
             {
                 var getter = ReflectionUtils.GetGetMethod(cache, SamplePropertyInfo);
+                var value = getter(obj);
             }
 
             using (new Profiler(WriteLine))
             {
                 var getter = ReflectionUtils.GetGetMethod(cache, SamplePropertyInfo);
-
+                var value = getter(obj);
             }
 
             using (new Profiler(WriteLine))
@@ -127,6 +131,34 @@ namespace ReflectionUtils
                 for (int i = 0; i < loops; i++)
                 {
                     var getter = ReflectionUtils.GetGetMethod(cache, SamplePropertyInfo);
+                    var value = getter(obj);
+                }
+            }
+        }
+
+        private static void SetPropertyByReflectionEmit()
+        {
+            var cache = ReflectionUtils.CreateSetMethodForProperitesCacheForReflection();
+
+            var obj = new SimpleClass();
+            using (new Profiler("prop.set method invoke", WriteLine))
+            {
+                var setter = ReflectionUtils.GetSetMethod(cache, SamplePropertyInfo);
+                setter(obj, "val");
+            }
+
+            using (new Profiler(WriteLine))
+            {
+                var setter = ReflectionUtils.GetSetMethod(cache, SamplePropertyInfo);
+                setter(obj, "val");
+            }
+
+            using (new Profiler(WriteLine))
+            {
+                for (int i = 0; i < loops; i++)
+                {
+                    var setter = ReflectionUtils.GetSetMethod(cache, SamplePropertyInfo);
+                    setter(obj, "val");
                 }
             }
         }

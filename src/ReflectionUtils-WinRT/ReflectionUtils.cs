@@ -36,7 +36,9 @@
 #define REFLECTION_UTILS_TYPEINFO
 #endif
 
+// ReSharper disable CheckNamespace
 namespace ReflectionUtils
+// ReSharper restore CheckNamespace
 {
     using System;
     using System.Collections.Generic;
@@ -109,16 +111,17 @@ namespace ReflectionUtils
 
 #if REFLECTION_UTILS_REFLECTION_EMIT
 
-        private static readonly bool UseReflectionEmit;
+        private static readonly bool CanSafelyUseUseReflectionEmit;
 
         static ReflectionUtils()
         {
             try
             {
                 // try creating a new object by Reflection.Emit first to see if we have enough permission.
+                // coz Refleciton.Emit fails in medium trust.
                 object dummyObj = GetConstructorByReflectionEmit(typeof(DummyClassForReflectionEmitTest), EmptyTypes)();
                 if (dummyObj != null)
-                    UseReflectionEmit = true;
+                    CanSafelyUseUseReflectionEmit = true;
             }
             catch
             {
@@ -235,6 +238,17 @@ namespace ReflectionUtils
 
         public static ThreadSafeDictionary<ConstructorKey, ConstructorDelegate> CreateConstructorCacheForReflectionEmit()
         {
+            return CreateConstructorCacheForReflectionEmit(false);
+        }
+
+        public static ThreadSafeDictionary<ConstructorKey, ConstructorDelegate> CreateConstructorCacheForReflectionEmit(bool forceReflectionEmit)
+        {
+            if (!forceReflectionEmit)
+            {
+                if (!CanSafelyUseUseReflectionEmit)
+                    return CreateConstructorCacheForReflection();
+            }
+
             return new ThreadSafeDictionary<ConstructorKey, ConstructorDelegate>(delegate(ConstructorKey key) { return GetConstructorByReflectionEmit(key.Type, key.ArgsType); });
         }
 
@@ -461,6 +475,16 @@ namespace ReflectionUtils
             return delegate(object source) { return methodInfo.Invoke(source, EmptyObjects); };
         }
 
+        public static ThreadSafeDictionary<MemberInfoKey, SetDelegate> CreateSetMethodForProperitesCacheForReflection()
+        {
+            return new ThreadSafeDictionary<MemberInfoKey, SetDelegate>(delegate(MemberInfoKey key) { return GetSetMethodByReflection(key.MemberInfo as PropertyInfo); });
+        }
+
+        public static SetDelegate GetSetMethod(ThreadSafeDictionary<MemberInfoKey, SetDelegate> cache, PropertyInfo propertyInfo)
+        {
+            return cache.Get(new MemberInfoKey(propertyInfo));
+        }
+
         public static SetDelegate GetSetMethodByReflection(PropertyInfo propertyInfo)
         {
 #if REFLECTION_UTILS_TYPEINFO
@@ -567,7 +591,6 @@ namespace ReflectionUtils
 
             public MemberInfo MemberInfo { get { return _memberInfo; } }
             public bool CanRead { get { return _canRead; } }
-
 
             public MemberInfoKey(MemberInfo memberInfo)
             {

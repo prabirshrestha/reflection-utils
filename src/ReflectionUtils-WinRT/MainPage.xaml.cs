@@ -19,6 +19,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Windows.Foundation;
@@ -38,6 +39,5 @@ namespace ReflectionUtils_WinRT
             InitializeComponent();
 
         }
-
     }
 }
