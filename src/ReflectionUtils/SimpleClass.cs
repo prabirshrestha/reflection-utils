@@ -38,6 +38,8 @@ namespace ReflectionUtils
 
         public string Prop { get; set; }
 
+        public string Field;
+
         // CreateInstance
         internal static SimpleClass CreateInstance()
         {

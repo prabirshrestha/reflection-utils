@@ -28,6 +28,7 @@ namespace ReflectionUtils
         public const int loops = 1000000;
 
         public static PropertyInfo SamplePropertyInfo = ReflectionUtils.GetProperties(typeof(SimpleClass)).Single(p => p.Name == "Prop");
+        public static FieldInfo SampleFieldInfo = ReflectionUtils.GetFields(typeof(SimpleClass)).Single(p => p.Name == "Field");
 
         static void Main(string[] args)
         {
@@ -38,6 +39,8 @@ namespace ReflectionUtils
             GetPropertyByReflection();
 
             SetPropertyByReflectionEmit();
+
+            GetFieldByReflection();
         }
 
         private static void GetConstructorByReflection()
@@ -111,7 +114,7 @@ namespace ReflectionUtils
 
         private static void GetPropertyByReflection()
         {
-            var cache = ReflectionUtils.CreateGetMethodForProperitesCacheForReflection();
+            var cache = ReflectionUtils.CreateGetMethodForMemberInfoCacheForReflection();
 
             var obj = new SimpleClass();
             using (new Profiler("prop.get method invoke", WriteLine))
@@ -138,7 +141,7 @@ namespace ReflectionUtils
 
         private static void SetPropertyByReflectionEmit()
         {
-            var cache = ReflectionUtils.CreateSetMethodForProperitesCacheForReflection();
+            var cache = ReflectionUtils.CreateSetMethodForMemberInfoCacheForReflection();
 
             var obj = new SimpleClass();
             using (new Profiler("prop.set method invoke", WriteLine))
@@ -159,6 +162,33 @@ namespace ReflectionUtils
                 {
                     var setter = ReflectionUtils.GetSetMethod(cache, SamplePropertyInfo);
                     setter(obj, "val");
+                }
+            }
+        }
+
+        private static void GetFieldByReflection()
+        {
+            var cache = ReflectionUtils.CreateGetMethodForMemberInfoCacheForReflection();
+
+            var obj = new SimpleClass();
+            using (new Profiler("field.get method invoke", WriteLine))
+            {
+                var getter = ReflectionUtils.GetGetMethod(cache, SampleFieldInfo);
+                var value = getter(obj);
+            }
+
+            using (new Profiler(WriteLine))
+            {
+                var getter = ReflectionUtils.GetGetMethod(cache, SampleFieldInfo);
+                var value = getter(obj);
+            }
+
+            using (new Profiler(WriteLine))
+            {
+                for (int i = 0; i < loops; i++)
+                {
+                    var getter = ReflectionUtils.GetGetMethod(cache, SampleFieldInfo);
+                    var value = getter(obj);
                 }
             }
         }

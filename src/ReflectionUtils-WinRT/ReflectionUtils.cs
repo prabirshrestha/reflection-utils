@@ -455,12 +455,18 @@ namespace ReflectionUtils
 #endif
         }
 
-        public static ThreadSafeDictionary<MemberInfoKey, GetDelegate> CreateGetMethodForProperitesCacheForReflection()
+        public static ThreadSafeDictionary<MemberInfoKey, GetDelegate> CreateGetMethodForMemberInfoCacheForReflection()
         {
-            return new ThreadSafeDictionary<MemberInfoKey, GetDelegate>(delegate(MemberInfoKey key) { return GetGetMethodByReflection(key.MemberInfo as PropertyInfo); });
+            return new ThreadSafeDictionary<MemberInfoKey, GetDelegate>(
+                delegate(MemberInfoKey key)
+                    {
+                        return key.IsProperty
+                                   ? GetGetMethodByReflection(key.MemberInfo as PropertyInfo)
+                                   : GetGetMethodByReflection(key.MemberInfo as FieldInfo);
+                    });
         }
 
-        public static GetDelegate GetGetMethod(ThreadSafeDictionary<MemberInfoKey, GetDelegate> cache, PropertyInfo propertyInfo)
+        public static GetDelegate GetGetMethod(ThreadSafeDictionary<MemberInfoKey, GetDelegate> cache, MemberInfo propertyInfo)
         {
             return cache.Get(new MemberInfoKey(propertyInfo));
         }
@@ -475,12 +481,17 @@ namespace ReflectionUtils
             return delegate(object source) { return methodInfo.Invoke(source, EmptyObjects); };
         }
 
-        public static ThreadSafeDictionary<MemberInfoKey, SetDelegate> CreateSetMethodForProperitesCacheForReflection()
+        public static GetDelegate GetGetMethodByReflection(FieldInfo fieldInfo)
+        {
+            return delegate(object source) { return fieldInfo.GetValue(source); };
+        }
+
+        public static ThreadSafeDictionary<MemberInfoKey, SetDelegate> CreateSetMethodForMemberInfoCacheForReflection()
         {
             return new ThreadSafeDictionary<MemberInfoKey, SetDelegate>(delegate(MemberInfoKey key) { return GetSetMethodByReflection(key.MemberInfo as PropertyInfo); });
         }
 
-        public static SetDelegate GetSetMethod(ThreadSafeDictionary<MemberInfoKey, SetDelegate> cache, PropertyInfo propertyInfo)
+        public static SetDelegate GetSetMethod(ThreadSafeDictionary<MemberInfoKey, SetDelegate> cache, MemberInfo propertyInfo)
         {
             return cache.Get(new MemberInfoKey(propertyInfo));
         }
@@ -591,6 +602,8 @@ namespace ReflectionUtils
 
             public MemberInfo MemberInfo { get { return _memberInfo; } }
             public bool CanRead { get { return _canRead; } }
+            public bool IsProperty { get { return _isProperty; } }
+            public bool IsField { get { return _isField; } }
 
             public MemberInfoKey(MemberInfo memberInfo)
             {
