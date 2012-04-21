@@ -517,12 +517,46 @@ namespace ReflectionUtils
 
             var instance = Expression.Parameter(typeof(object), "instance");
             UnaryExpression instanceCast = (!IsValueType(propertyInfo.DeclaringType)) ? Expression.TypeAs(instance, propertyInfo.DeclaringType) : Expression.Convert(instance, propertyInfo.DeclaringType);
-
             var compiled = Expression.Lambda<Func<object, object>>(Expression.TypeAs(Expression.Call(instanceCast, getMethodInfo), typeof(object)), instance).Compile();
             return delegate(object source) { return compiled(source); };
         }
 
         public static GetDelegate GetGetMethodByCompiledLambda(FieldInfo fieldInfo)
+        {
+            throw new NotImplementedException();
+        }
+
+        public static ThreadSafeDictionary<MemberInfoKey, SetDelegate> CreateSetMethodForMemberInfoCacheForCompiledLambda()
+        {
+            return new ThreadSafeDictionary<MemberInfoKey, SetDelegate>(
+                delegate(MemberInfoKey key)
+                {
+                    return key.IsProperty
+                               ? GetSetMethodByCompiledLambda(key.MemberInfo as PropertyInfo)
+                               : GetSetMethodByCompiledLambda(key.MemberInfo as FieldInfo);
+                });
+        }
+
+        public static SetDelegate GetSetMethodByCompiledLambda(PropertyInfo propertyInfo)
+        {
+#if NETFX_CORE
+            MethodInfo setMethodInfo = propertyInfo.SetMethod;
+#else
+            MethodInfo setMethodInfo = propertyInfo.GetSetMethod(true);
+#endif
+            if (setMethodInfo == null)
+                return null;
+            var instance = Expression.Parameter(typeof(object), "instance");
+            var value = Expression.Parameter(typeof(object), "value");
+
+            // value as T is slightly faster than (T)value, so if it's not a value type, use that
+            UnaryExpression instanceCast = (!IsValueType(propertyInfo.DeclaringType)) ? Expression.TypeAs(instance, propertyInfo.DeclaringType) : Expression.Convert(instance, propertyInfo.DeclaringType);
+            UnaryExpression valueCast = (!IsValueType(propertyInfo.PropertyType)) ? Expression.TypeAs(value, propertyInfo.PropertyType) : Expression.Convert(value, propertyInfo.PropertyType);
+            var compiled = Expression.Lambda<Action<object, object>>(Expression.Call(instanceCast, setMethodInfo, valueCast), new ParameterExpression[] { instance, value }).Compile();
+            return delegate(object source, object val) { compiled(source, val); };
+        }
+
+        public static SetDelegate GetSetMethodByCompiledLambda(FieldInfo fieldInfo)
         {
             throw new NotImplementedException();
         }

@@ -42,6 +42,7 @@ namespace ReflectionUtils
 
             SetPropertyByReflection();
             SetPropertyByReflectionEmit();
+            SetPropertyByCompiledLambda();
 
             GetFieldByReflection();
             GetFieldByReflectionEmit();
@@ -233,6 +234,33 @@ namespace ReflectionUtils
 
             var obj = new SimpleClass();
             using (new Profiler("prop.set reflection emit", WriteLine))
+            {
+                var setter = ReflectionUtils.GetSetMethod(cache, SamplePropertyInfo);
+                setter(obj, "val");
+            }
+
+            using (new Profiler(WriteLine))
+            {
+                var setter = ReflectionUtils.GetSetMethod(cache, SamplePropertyInfo);
+                setter(obj, "val");
+            }
+
+            using (new Profiler(WriteLine))
+            {
+                for (int i = 0; i < loops; i++)
+                {
+                    var setter = ReflectionUtils.GetSetMethod(cache, SamplePropertyInfo);
+                    setter(obj, "val");
+                }
+            }
+        }
+
+        private static void SetPropertyByCompiledLambda()
+        {
+            var cache = ReflectionUtils.CreateSetMethodForMemberInfoCacheForCompiledLambda();
+
+            var obj = new SimpleClass();
+            using (new Profiler("prop.set compiled lambda", WriteLine))
             {
                 var setter = ReflectionUtils.GetSetMethod(cache, SamplePropertyInfo);
                 setter(obj, "val");
