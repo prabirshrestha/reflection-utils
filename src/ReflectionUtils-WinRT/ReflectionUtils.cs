@@ -597,7 +597,7 @@ namespace ReflectionUtils
                 return null;
 
             Type type = fieldInfo.FieldType;
-            DynamicMethod dynamicMethod = new DynamicMethod("set_DynamicMethod" + type.FullName, fieldInfo.DeclaringType, TypeofObjectArray, fieldInfo.DeclaringType);
+            DynamicMethod dynamicMethod = CreateDynamicMethod("Set" + fieldInfo.Name, null, new Type[] { typeof(object), typeof(object) }, fieldInfo.DeclaringType);
             ILGenerator setGenerator = dynamicMethod.GetILGenerator();
 
             setGenerator.Emit(OpCodes.Ldarg_0);

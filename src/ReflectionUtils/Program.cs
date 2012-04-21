@@ -46,6 +46,7 @@ namespace ReflectionUtils
             GetFieldByReflectionEmit();
 
             SetFieldByReflection();
+            SetFieldByReflectionEmit();
         }
 
         private static void GetConstructorByReflection()
@@ -285,6 +286,33 @@ namespace ReflectionUtils
 
             var obj = new SimpleClass();
             using (new Profiler("field.set method invoke", WriteLine))
+            {
+                var setter = ReflectionUtils.GetSetMethod(cache, SampleFieldInfo);
+                setter(obj, "val");
+            }
+
+            using (new Profiler(WriteLine))
+            {
+                var setter = ReflectionUtils.GetSetMethod(cache, SampleFieldInfo);
+                setter(obj, "val");
+            }
+
+            using (new Profiler(WriteLine))
+            {
+                for (int i = 0; i < loops; i++)
+                {
+                    var setter = ReflectionUtils.GetSetMethod(cache, SampleFieldInfo);
+                    setter(obj, "val");
+                }
+            }
+        }
+
+        private static void SetFieldByReflectionEmit()
+        {
+            var cache = ReflectionUtils.CreateSetMethodForMemberInfoCacheForReflectionEmit();
+
+            var obj = new SimpleClass();
+            using (new Profiler("field.set reflection emit", WriteLine))
             {
                 var setter = ReflectionUtils.GetSetMethod(cache, SampleFieldInfo);
                 setter(obj, "val");
