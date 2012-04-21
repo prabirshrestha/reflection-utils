@@ -435,6 +435,14 @@ namespace ReflectionUtils
         }
 
 #endif
+        public static bool IsValueType(Type type)
+        {
+#if NETFX_CORE
+            return type.GetTypeInfo().IsValueType;
+#else
+            return type.IsValueType;
+#endif
+        }
 
         public static IEnumerable<PropertyInfo> GetProperties(Type type)
         {
@@ -484,6 +492,41 @@ namespace ReflectionUtils
         {
             return delegate(object source) { return fieldInfo.GetValue(source); };
         }
+
+#if !REFLECTION_UTILS_NO_LINQ_EXPRESSION
+        public static ThreadSafeDictionary<MemberInfoKey, GetDelegate> CreateGetMethodForMemberInfoCacheForCompiledLambda()
+        {
+            return new ThreadSafeDictionary<MemberInfoKey, GetDelegate>(
+                delegate(MemberInfoKey key)
+                    {
+                        return key.IsProperty
+                                   ? GetGetMethodByCompiledLambda(key.MemberInfo as PropertyInfo)
+                                   : GetGetMethodByCompiledLambda(key.MemberInfo as FieldInfo);
+                    });
+        }
+
+        public static GetDelegate GetGetMethodByCompiledLambda(PropertyInfo propertyInfo)
+        {
+#if NETFX_CORE
+            MethodInfo getMethodInfo = propertyInfo.GetMethod;
+#else
+            MethodInfo getMethodInfo = propertyInfo.GetGetMethod(true);
+#endif
+            if (getMethodInfo == null)
+                return null;
+
+            var instance = Expression.Parameter(typeof(object), "instance");
+            UnaryExpression instanceCast = (!IsValueType(propertyInfo.DeclaringType)) ? Expression.TypeAs(instance, propertyInfo.DeclaringType) : Expression.Convert(instance, propertyInfo.DeclaringType);
+
+            var compiled = Expression.Lambda<Func<object, object>>(Expression.TypeAs(Expression.Call(instanceCast, getMethodInfo), typeof(object)), instance).Compile();
+            return delegate(object source) { return compiled(source); };
+        }
+
+        public static GetDelegate GetGetMethodByCompiledLambda(FieldInfo fieldInfo)
+        {
+            throw new NotImplementedException();
+        }
+#endif
 
 #if REFLECTION_UTILS_REFLECTION_EMIT
 
