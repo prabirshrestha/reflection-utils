@@ -84,6 +84,7 @@ namespace ReflectionUtils
 
         private static void GetConstructorByReflectionEmit()
         {
+#if REFLECTION_UTILS_REFLECTION_EMIT
             var cache = ReflectionUtils.CreateConstructorCacheForReflectionEmit();
 
             using (new Profiler("ctor reflection.emit", _writer))
@@ -103,6 +104,7 @@ namespace ReflectionUtils
                     var obj = ReflectionUtils.GetConstructor(cache, typeof(SimpleClass), ReflectionUtils.EmptyTypes)();
                 }
             }
+#endif
         }
 
         private static void GetConstructorByCompiledLambda()
@@ -157,6 +159,7 @@ namespace ReflectionUtils
 
         private static void GetPropertyByReflectionEmit()
         {
+#if REFLECTION_UTILS_REFLECTION_EMIT
             var cache = ReflectionUtils.CreateGetMethodForMemberInfoCacheForReflectionEmit();
 
             var obj = new SimpleClass();
@@ -180,6 +183,7 @@ namespace ReflectionUtils
                     var value = getter(obj);
                 }
             }
+#endif
         }
 
         private static void GetPropertyByCompiledLambda()
@@ -238,6 +242,7 @@ namespace ReflectionUtils
 
         private static void SetPropertyByReflectionEmit()
         {
+#if REFLECTION_UTILS_REFLECTION_EMIT
             var cache = ReflectionUtils.CreateSetMethodForMemberInfoCacheForReflectionEmit();
 
             var obj = new SimpleClass();
@@ -261,6 +266,7 @@ namespace ReflectionUtils
                     setter(obj, "val");
                 }
             }
+#endif
         }
 
         private static void SetPropertyByCompiledLambda()
@@ -319,6 +325,7 @@ namespace ReflectionUtils
 
         private static void GetFieldByReflectionEmit()
         {
+#if REFLECTION_UTILS_REFLECTION_EMIT
             var cache = ReflectionUtils.CreateGetMethodForMemberInfoCacheForReflectionEmit();
 
             var obj = new SimpleClass();
@@ -342,6 +349,7 @@ namespace ReflectionUtils
                     var value = getter(obj);
                 }
             }
+#endif
         }
 
         private static void GetFieldByCompiledLambda()
@@ -400,6 +408,7 @@ namespace ReflectionUtils
 
         private static void SetFieldByReflectionEmit()
         {
+#if REFLECTION_UTILS_REFLECTION_EMIT
             var cache = ReflectionUtils.CreateSetMethodForMemberInfoCacheForReflectionEmit();
 
             var obj = new SimpleClass();
@@ -423,6 +432,7 @@ namespace ReflectionUtils
                     setter(obj, "val");
                 }
             }
+#endif
         }
 
         private static void SetFieldByCompiledLambda()

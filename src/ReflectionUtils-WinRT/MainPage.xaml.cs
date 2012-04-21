@@ -38,6 +38,7 @@ namespace ReflectionUtils_WinRT
         {
             InitializeComponent();
 
+            ReflectionUtilsBenchmarks.Run(s => result.Text += s + Environment.NewLine);
         }
     }
 }
