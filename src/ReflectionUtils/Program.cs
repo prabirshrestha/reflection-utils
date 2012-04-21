@@ -46,6 +46,7 @@ namespace ReflectionUtils
 
             GetFieldByReflection();
             GetFieldByReflectionEmit();
+            GetFieldByCompiledLambda();
 
             SetFieldByReflection();
             SetFieldByReflectionEmit();
@@ -315,6 +316,33 @@ namespace ReflectionUtils
 
             var obj = new SimpleClass();
             using (new Profiler("field.get reflection emit", WriteLine))
+            {
+                var getter = ReflectionUtils.GetGetMethod(cache, SampleFieldInfo);
+                var value = getter(obj);
+            }
+
+            using (new Profiler(WriteLine))
+            {
+                var getter = ReflectionUtils.GetGetMethod(cache, SampleFieldInfo);
+                var value = getter(obj);
+            }
+
+            using (new Profiler(WriteLine))
+            {
+                for (int i = 0; i < loops; i++)
+                {
+                    var getter = ReflectionUtils.GetGetMethod(cache, SampleFieldInfo);
+                    var value = getter(obj);
+                }
+            }
+        }
+
+        private static void GetFieldByCompiledLambda()
+        {
+            var cache = ReflectionUtils.CreateGetMethodForMemberInfoCacheForCompiledLambda();
+
+            var obj = new SimpleClass();
+            using (new Profiler("field.get compiled lambda", WriteLine))
             {
                 var getter = ReflectionUtils.GetGetMethod(cache, SampleFieldInfo);
                 var value = getter(obj);

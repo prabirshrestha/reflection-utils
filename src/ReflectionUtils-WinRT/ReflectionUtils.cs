@@ -498,11 +498,11 @@ namespace ReflectionUtils
         {
             return new ThreadSafeDictionary<MemberInfoKey, GetDelegate>(
                 delegate(MemberInfoKey key)
-                    {
-                        return key.IsProperty
-                                   ? GetGetMethodByCompiledLambda(key.MemberInfo as PropertyInfo)
-                                   : GetGetMethodByCompiledLambda(key.MemberInfo as FieldInfo);
-                    });
+                {
+                    return key.IsProperty
+                               ? GetGetMethodByCompiledLambda(key.MemberInfo as PropertyInfo)
+                               : GetGetMethodByCompiledLambda(key.MemberInfo as FieldInfo);
+                });
         }
 
         public static GetDelegate GetGetMethodByCompiledLambda(PropertyInfo propertyInfo)
@@ -523,7 +523,10 @@ namespace ReflectionUtils
 
         public static GetDelegate GetGetMethodByCompiledLambda(FieldInfo fieldInfo)
         {
-            throw new NotImplementedException();
+            var instance = Expression.Parameter(typeof(object), "instance");
+            var member = Expression.Field(Expression.Convert(instance, fieldInfo.DeclaringType), fieldInfo);
+            var compiled = Expression.Lambda<GetDelegate>(Expression.Convert(member, typeof(object)), instance).Compile();
+            return delegate(object source) { return compiled(source); };
         }
 
         public static ThreadSafeDictionary<MemberInfoKey, SetDelegate> CreateSetMethodForMemberInfoCacheForCompiledLambda()
