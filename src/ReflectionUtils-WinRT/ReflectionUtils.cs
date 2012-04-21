@@ -51,56 +51,56 @@ namespace ReflectionUtils
 #endif
 
 #if REFLECTION_UTILS_PUBLIC
-        public
+     public
 #else
     internal
 #endif
  delegate object ConstructorDelegate(params object[] args);
 
 #if REFLECTION_UTILS_PUBLIC
-        public
+     public
 #else
     internal
 #endif
  delegate object GetDelegate(object source);
 
 #if REFLECTION_UTILS_PUBLIC
-        public
+     public
 #else
     internal
 #endif
  delegate void SetDelegate(object source, object value);
 
 #if REFLECTION_UTILS_PUBLIC
-        public
+     public
 #else
     internal
 #endif
  delegate object MethodDelegate(object source, params object[] args);
 
 #if REFLECTION_UTILS_PUBLIC
-        public
+     public
 #else
     internal
 #endif
  delegate TValue ThreadSafeDictionaryValueFactory<TKey, TValue>(TKey key);
 
 #if REFLECTION_UTILS_PUBLIC
-        public
+     public
 #else
     internal
 #endif
  delegate GetDelegate GetDelegateFactory(MemberInfo memberInfo);
 
 #if REFLECTION_UTILS_PUBLIC
-        public
+     public
 #else
     internal
 #endif
  delegate SetDelegate SetDelegateFactory(MemberInfo memberInfo);
 
 #if REFLECTION_UTILS_PUBLIC
-        public
+     public
 #else
     internal
 #endif
@@ -198,13 +198,8 @@ namespace ReflectionUtils
         public static ConstructorDelegate GetConstructorByCompiledLambda(ConstructorInfo constructorInfo)
         {
             ParameterInfo[] paramsInfo = constructorInfo.GetParameters();
-            // create a single param of type object[]
             ParameterExpression param = Expression.Parameter(typeof(object[]), "args");
-
             Expression[] argsExp = new Expression[paramsInfo.Length];
-
-            // pick each arg from the params array 
-            // and create a typed expression of them
             for (int i = 0; i < paramsInfo.Length; i++)
             {
                 Expression index = Expression.Constant(i);
@@ -213,15 +208,9 @@ namespace ReflectionUtils
                 Expression paramCastExp = Expression.Convert(paramAccessorExp, paramType);
                 argsExp[i] = paramCastExp;
             }
-
-            // make a NewExpression that calls the ctor with the args we just created
             NewExpression newExp = Expression.New(constructorInfo, argsExp);
-
-            // create a lambda with the New
-            // Expression as body and our param object[] as arg
             Expression<Func<object[], object>> lambda = Expression.Lambda<Func<object[], object>>(newExp, param);
             Func<object[], object> compiledLambda = lambda.Compile();
-
             return delegate(object[] args) { return compiledLambda(args); };
         }
 
@@ -449,7 +438,7 @@ namespace ReflectionUtils
 #if REFLECTION_UTILS_TYPEINFO
             return type.GetTypeInfo().DeclaredProperties;
 #else
-            return type.GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.Static);
+            return type.GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
 #endif
         }
 
@@ -458,7 +447,25 @@ namespace ReflectionUtils
 #if REFLECTION_UTILS_TYPEINFO
             return type.GetTypeInfo().DeclaredFields;
 #else
-            return type.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.Static);
+            return type.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
+#endif
+        }
+
+        public static MethodInfo GetGetMethodInfo(PropertyInfo propertyInfo)
+        {
+#if REFLECTION_UTILS_TYPEINFO
+            return propertyInfo.GetMethod;
+#else
+            return propertyInfo.GetGetMethod(true);
+#endif
+        }
+
+        public static MethodInfo GetSetMethodInfo(PropertyInfo propertyInfo)
+        {
+#if NETFX_CORE
+            return propertyInfo.SetMethod;
+#else
+            return propertyInfo.GetSetMethod(true);
 #endif
         }
 
@@ -467,9 +474,7 @@ namespace ReflectionUtils
             return new ThreadSafeDictionary<MemberInfoKey, GetDelegate>(
                 delegate(MemberInfoKey key)
                 {
-                    return key.IsProperty
-                               ? GetGetMethodByReflection(key.MemberInfo as PropertyInfo)
-                               : GetGetMethodByReflection(key.MemberInfo as FieldInfo);
+                    return key.IsProperty ? GetGetMethodByReflection(key.MemberInfo as PropertyInfo): GetGetMethodByReflection(key.MemberInfo as FieldInfo);
                 });
         }
 
@@ -480,11 +485,7 @@ namespace ReflectionUtils
 
         public static GetDelegate GetGetMethodByReflection(PropertyInfo propertyInfo)
         {
-#if REFLECTION_UTILS_TYPEINFO
-            MethodInfo methodInfo = propertyInfo.GetMethod;
-#else
-            MethodInfo methodInfo = propertyInfo.GetGetMethod(true);
-#endif
+            MethodInfo methodInfo = GetGetMethodInfo(propertyInfo);
             return delegate(object source) { return methodInfo.Invoke(source, EmptyObjects); };
         }
 
@@ -499,22 +500,13 @@ namespace ReflectionUtils
             return new ThreadSafeDictionary<MemberInfoKey, GetDelegate>(
                 delegate(MemberInfoKey key)
                 {
-                    return key.IsProperty
-                               ? GetGetMethodByCompiledLambda(key.MemberInfo as PropertyInfo)
-                               : GetGetMethodByCompiledLambda(key.MemberInfo as FieldInfo);
+                    return key.IsProperty ? GetGetMethodByCompiledLambda(key.MemberInfo as PropertyInfo) : GetGetMethodByCompiledLambda(key.MemberInfo as FieldInfo);
                 });
         }
 
         public static GetDelegate GetGetMethodByCompiledLambda(PropertyInfo propertyInfo)
         {
-#if NETFX_CORE
-            MethodInfo getMethodInfo = propertyInfo.GetMethod;
-#else
-            MethodInfo getMethodInfo = propertyInfo.GetGetMethod(true);
-#endif
-            if (getMethodInfo == null)
-                return null;
-
+            MethodInfo getMethodInfo = GetGetMethodInfo(propertyInfo);
             var instance = Expression.Parameter(typeof(object), "instance");
             UnaryExpression instanceCast = (!IsValueType(propertyInfo.DeclaringType)) ? Expression.TypeAs(instance, propertyInfo.DeclaringType) : Expression.Convert(instance, propertyInfo.DeclaringType);
             var compiled = Expression.Lambda<Func<object, object>>(Expression.TypeAs(Expression.Call(instanceCast, getMethodInfo), typeof(object)), instance).Compile();
@@ -534,25 +526,15 @@ namespace ReflectionUtils
             return new ThreadSafeDictionary<MemberInfoKey, SetDelegate>(
                 delegate(MemberInfoKey key)
                 {
-                    return key.IsProperty
-                               ? GetSetMethodByCompiledLambda(key.MemberInfo as PropertyInfo)
-                               : GetSetMethodByCompiledLambda(key.MemberInfo as FieldInfo);
+                    return key.IsProperty ? GetSetMethodByCompiledLambda(key.MemberInfo as PropertyInfo) : GetSetMethodByCompiledLambda(key.MemberInfo as FieldInfo);
                 });
         }
 
         public static SetDelegate GetSetMethodByCompiledLambda(PropertyInfo propertyInfo)
         {
-#if NETFX_CORE
-            MethodInfo setMethodInfo = propertyInfo.SetMethod;
-#else
-            MethodInfo setMethodInfo = propertyInfo.GetSetMethod(true);
-#endif
-            if (setMethodInfo == null)
-                return null;
+            MethodInfo setMethodInfo = GetSetMethodInfo(propertyInfo);
             var instance = Expression.Parameter(typeof(object), "instance");
             var value = Expression.Parameter(typeof(object), "value");
-
-            // value as T is slightly faster than (T)value, so if it's not a value type, use that
             UnaryExpression instanceCast = (!IsValueType(propertyInfo.DeclaringType)) ? Expression.TypeAs(instance, propertyInfo.DeclaringType) : Expression.Convert(instance, propertyInfo.DeclaringType);
             UnaryExpression valueCast = (!IsValueType(propertyInfo.PropertyType)) ? Expression.TypeAs(value, propertyInfo.PropertyType) : Expression.Convert(value, propertyInfo.PropertyType);
             var compiled = Expression.Lambda<Action<object, object>>(Expression.Call(instanceCast, setMethodInfo, valueCast), new ParameterExpression[] { instance, value }).Compile();
@@ -563,15 +545,8 @@ namespace ReflectionUtils
         {
             var instance = Expression.Parameter(typeof(object), "instance");
             var value = Expression.Parameter(typeof(object), "value");
-
             var compiled = Expression.Lambda<Action<object, object>>(
-                Assign(
-                    Expression.Field(
-                        Expression.Convert(instance, fieldInfo.DeclaringType),
-                        fieldInfo),
-                    Expression.Convert(value, fieldInfo.FieldType)),
-                instance,
-                value).Compile();
+                Assign(Expression.Field(Expression.Convert(instance, fieldInfo.DeclaringType),fieldInfo),Expression.Convert(value, fieldInfo.FieldType)),instance,value).Compile();
             return delegate(object source, object val) { compiled(source, val); };
         }
 
@@ -613,32 +588,21 @@ namespace ReflectionUtils
             return new ThreadSafeDictionary<MemberInfoKey, GetDelegate>(
                 delegate(MemberInfoKey key)
                 {
-                    return key.IsProperty
-                               ? GetGetMethodByReflectionEmit(key.MemberInfo as PropertyInfo)
-                               : GetGetMethodByReflectionEmit(key.MemberInfo as FieldInfo);
+                    return key.IsProperty ? GetGetMethodByReflectionEmit(key.MemberInfo as PropertyInfo) : GetGetMethodByReflectionEmit(key.MemberInfo as FieldInfo);
                 });
         }
 
         public static GetDelegate GetGetMethodByReflectionEmit(PropertyInfo propertyInfo)
         {
-#if NETFX_CORE
-            MethodInfo getMethodInfo = propertyInfo.GetMethod;
-#else
-            MethodInfo getMethodInfo = propertyInfo.GetGetMethod(true);
-#endif
-            if (getMethodInfo == null)
-                return null;
-
+            MethodInfo getMethodInfo = GetGetMethodInfo(propertyInfo);
             Type type = propertyInfo.PropertyType;
             DynamicMethod dynamicMethod = new DynamicMethod("get_DynamicMethod" + type.FullName, propertyInfo.DeclaringType, TypeofObjectArray, propertyInfo.DeclaringType);
             ILGenerator getGenerator = dynamicMethod.GetILGenerator();
-
             getGenerator.Emit(OpCodes.Ldarg_0);
             getGenerator.Emit(OpCodes.Call, getMethodInfo);
             if (type.IsValueType)
                 getGenerator.Emit(OpCodes.Box, type);
             getGenerator.Emit(OpCodes.Ret);
-
             return (GetDelegate)dynamicMethod.CreateDelegate(typeof(GetDelegate));
         }
 
@@ -647,13 +611,11 @@ namespace ReflectionUtils
             Type type = fieldInfo.FieldType;
             DynamicMethod dynamicGet = new DynamicMethod("get_DynamicMethod" + type.FullName, fieldInfo.DeclaringType, TypeofObjectArray, fieldInfo.DeclaringType);
             ILGenerator getGenerator = dynamicGet.GetILGenerator();
-
             getGenerator.Emit(OpCodes.Ldarg_0);
             getGenerator.Emit(OpCodes.Ldfld, fieldInfo);
             if (type.IsValueType)
                 getGenerator.Emit(OpCodes.Box, type);
             getGenerator.Emit(OpCodes.Ret);
-
             return (GetDelegate)dynamicGet.CreateDelegate(typeof(GetDelegate));
         }
 
@@ -673,22 +635,13 @@ namespace ReflectionUtils
             return new ThreadSafeDictionary<MemberInfoKey, SetDelegate>(
                 delegate(MemberInfoKey key)
                 {
-                    return key.IsProperty
-                               ? GetSetMethodByReflectionEmit(key.MemberInfo as PropertyInfo)
-                               : GetSetMethodByReflectionEmit(key.MemberInfo as FieldInfo);
+                    return key.IsProperty ? GetSetMethodByReflectionEmit(key.MemberInfo as PropertyInfo) : GetSetMethodByReflectionEmit(key.MemberInfo as FieldInfo);
                 });
         }
 
         public static SetDelegate GetSetMethodByReflectionEmit(PropertyInfo propertyInfo)
         {
-#if NETFX_CORE
-            MethodInfo getMethodInfo = propertyInfo.SetMethod;
-#else
-            MethodInfo setMethodInfo = propertyInfo.GetSetMethod(true);
-#endif
-            if (setMethodInfo == null)
-                return null;
-
+            MethodInfo setMethodInfo = GetSetMethodInfo(propertyInfo);
             Type type = propertyInfo.PropertyType;
             DynamicMethod dynamicMethod = CreateDynamicMethod("set_DynamicMethod_" + propertyInfo.Name, null, new Type[] { typeof(object), typeof(object) }, propertyInfo.DeclaringType);
             ILGenerator setGenerator = dynamicMethod.GetILGenerator();
@@ -705,11 +658,9 @@ namespace ReflectionUtils
         {
             if (fieldInfo.IsInitOnly || fieldInfo.IsLiteral)
                 return null;
-
             Type type = fieldInfo.FieldType;
             DynamicMethod dynamicMethod = CreateDynamicMethod("Set" + fieldInfo.Name, null, new Type[] { typeof(object), typeof(object) }, fieldInfo.DeclaringType);
             ILGenerator setGenerator = dynamicMethod.GetILGenerator();
-
             setGenerator.Emit(OpCodes.Ldarg_0);
             setGenerator.Emit(OpCodes.Ldarg_1);
             if (type.IsValueType)
@@ -720,13 +671,9 @@ namespace ReflectionUtils
             return (SetDelegate)dynamicMethod.CreateDelegate(typeof(SetDelegate));
         }
 
-        static DynamicMethod CreateDynamicMethod(string name, Type returnType, Type[] parameterTypes, Type owner)
+        private static DynamicMethod CreateDynamicMethod(string name, Type returnType, Type[] parameterTypes, Type owner)
         {
-            DynamicMethod dynamicMethod = !owner.IsInterface
-              ? new DynamicMethod(name, returnType, parameterTypes, owner, true)
-              : new DynamicMethod(name, returnType, parameterTypes, (Module)null, true);
-
-            return dynamicMethod;
+            return !owner.IsInterface ? new DynamicMethod(name, returnType, parameterTypes, owner, true) : new DynamicMethod(name, returnType, parameterTypes, (Module)null, true);
         }
 
 #endif
@@ -736,9 +683,7 @@ namespace ReflectionUtils
             return new ThreadSafeDictionary<MemberInfoKey, SetDelegate>(
                  delegate(MemberInfoKey key)
                  {
-                     return key.IsProperty
-                                ? GetSetMethodByReflection(key.MemberInfo as PropertyInfo)
-                                : GetSetMethodByReflection(key.MemberInfo as FieldInfo);
+                     return key.IsProperty ? GetSetMethodByReflection(key.MemberInfo as PropertyInfo) : GetSetMethodByReflection(key.MemberInfo as FieldInfo);
                  });
         }
 
@@ -749,11 +694,7 @@ namespace ReflectionUtils
 
         public static SetDelegate GetSetMethodByReflection(PropertyInfo propertyInfo)
         {
-#if REFLECTION_UTILS_TYPEINFO
-            MethodInfo methodInfo = propertyInfo.SetMethod;
-#else
-            MethodInfo methodInfo = propertyInfo.GetSetMethod(true);
-#endif
+            MethodInfo methodInfo = GetSetMethodInfo(propertyInfo);
             return delegate(object source, object value) { methodInfo.Invoke(source, new object[] { value }); };
         }
 
@@ -777,18 +718,15 @@ namespace ReflectionUtils
             {
                 if (_dictionary == null)
                     return AddValue(key);
-
                 TValue value;
                 if (!_dictionary.TryGetValue(key, out value))
                     return AddValue(key);
-
                 return value;
             }
 
             private TValue AddValue(TKey key)
             {
                 TValue value = _valueFactory(key);
-
                 lock (_lock)
                 {
                     if (_dictionary == null)
