@@ -14,7 +14,7 @@
 //    limitations under the License.
 // </copyright>
 // <author>Prabir Shrestha (prabir.me)</author>
-// <website>https://github.com/facebook-csharp-sdk/ReflectionUtils</website>
+// <website>https://github.com/facebook-csharp-sdk/reflection-utils</website>
 //-----------------------------------------------------------------------
 
 // uncomment the following line to make ReflectionUtils public
