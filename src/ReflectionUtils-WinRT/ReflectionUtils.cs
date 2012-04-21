@@ -111,7 +111,7 @@ namespace ReflectionUtils
 
 #if REFLECTION_UTILS_REFLECTION_EMIT
 
-        private static readonly bool CanSafelyUseUseReflectionEmit;
+        public static readonly bool CanSafelyUseUseReflectionEmit;
 
         static ReflectionUtils()
         {
@@ -561,7 +561,37 @@ namespace ReflectionUtils
 
         public static SetDelegate GetSetMethodByCompiledLambda(FieldInfo fieldInfo)
         {
-            throw new NotImplementedException();
+            var instance = Expression.Parameter(typeof(object), "instance");
+            var value = Expression.Parameter(typeof(object), "value");
+
+            var compiled = Expression.Lambda<Action<object, object>>(
+                Assign(
+                    Expression.Field(
+                        Expression.Convert(instance, fieldInfo.DeclaringType),
+                        fieldInfo),
+                    Expression.Convert(value, fieldInfo.FieldType)),
+                instance,
+                value).Compile();
+            return delegate(object source, object val) { compiled(source, val); };
+        }
+
+        public static BinaryExpression Assign(Expression left, Expression right)
+        {
+#if NETFX_CORE
+            return Expression.Assign(left, right);
+#else
+            var assign = typeof(Assigner<>).MakeGenericType(left.Type).GetMethod("Assign");
+            var assignExpr = Expression.Add(left, right, assign);
+            return assignExpr;
+#endif
+        }
+
+        private static class Assigner<T>
+        {
+            public static T Assign(ref T left, T right)
+            {
+                return (left = right);
+            }
         }
 #endif
 
@@ -627,26 +657,26 @@ namespace ReflectionUtils
             return (GetDelegate)dynamicGet.CreateDelegate(typeof(GetDelegate));
         }
 
-        public static ThreadSafeDictionary<MemberInfoKey,SetDelegate> CreateSetMethodForMemberInfoCacheForReflectionEmit()
+        public static ThreadSafeDictionary<MemberInfoKey, SetDelegate> CreateSetMethodForMemberInfoCacheForReflectionEmit()
         {
             return CreateSetMethodForMemberInfoCacheForReflectionEmit(false);
         }
 
-        public static ThreadSafeDictionary<MemberInfoKey,SetDelegate> CreateSetMethodForMemberInfoCacheForReflectionEmit(bool forceReflectionEmit)
+        public static ThreadSafeDictionary<MemberInfoKey, SetDelegate> CreateSetMethodForMemberInfoCacheForReflectionEmit(bool forceReflectionEmit)
         {
-            if(!forceReflectionEmit)
+            if (!forceReflectionEmit)
             {
                 if (!CanSafelyUseUseReflectionEmit)
                     return CreateSetMethodForMemberInfoCacheForReflection();
             }
 
             return new ThreadSafeDictionary<MemberInfoKey, SetDelegate>(
-                delegate (MemberInfoKey key)
-                    {
-                        return key.IsProperty
-                                   ? GetSetMethodByReflectionEmit(key.MemberInfo as PropertyInfo)
-                                   : GetSetMethodByReflectionEmit(key.MemberInfo as FieldInfo);
-                    });
+                delegate(MemberInfoKey key)
+                {
+                    return key.IsProperty
+                               ? GetSetMethodByReflectionEmit(key.MemberInfo as PropertyInfo)
+                               : GetSetMethodByReflectionEmit(key.MemberInfo as FieldInfo);
+                });
         }
 
         public static SetDelegate GetSetMethodByReflectionEmit(PropertyInfo propertyInfo)
